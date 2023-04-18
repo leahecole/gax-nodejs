@@ -308,22 +308,6 @@ async function testCollect(client: EchoClient) {
           resolve(result.content ?? '');
         }
       });
-<<<<<<< Updated upstream
-      for (const word of words) {
-        const request = {content: word};
-        stream.write(request);
-      }
-      stream.on('data', (result: {content: String}) => {
-        assert.deepStrictEqual(result.content, words.join(' '));
-      });
-      stream.end();
-    } catch (err) {
-      reject(err);
-    }
-  });
-  const result = await promise;
-  assert.strictEqual(result, words.join(' '));
-=======
       return attemptStream
   }
   let attemptStream;
@@ -338,7 +322,6 @@ async function testCollect(client: EchoClient) {
     attemptStream = await multipleSequenceAttempts(numResponses) 
 
   }
->>>>>>> Stashed changes
 }
 
 async function testCollectThrows(client: EchoClient) {
