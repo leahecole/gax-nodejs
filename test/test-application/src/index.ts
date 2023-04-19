@@ -22,7 +22,7 @@ import { EchoClient, SequenceServiceClient,protos } from 'showcase-echo-client';
 import * as assert from 'assert';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
-import { protobuf, grpc, GoogleError, GoogleAuth } from 'google-gax';
+import { protobuf, grpc, GoogleError, GoogleAuth, CallSettings, createRetryOptions, createDefaultBackoffSettings, createApiCall} from 'google-gax';
 //import { c } from 'tar';
 import { google } from 'google-gax/build/protos/operations';
 import { Stream } from 'stream';
@@ -59,15 +59,20 @@ async function testShowcase() {
     port: 7469,
     auth: fakeGoogleAuth,
   };
+  
+  //TODO LEAH
+  // pass clientConfig options when creating the client
+  // these will contain retry behavior
 
-  const grpcClient = new EchoClient(grpcClientOpts);
+  //const grpcClient = new EchoClient(grpcClientOpts);
   const grpcSequenceClient = new SequenceServiceClient(grpcClientOpts);
 
-  const fallbackClient = new EchoClient(fallbackClientOpts);
-  const restClient = new EchoClient(restClientOpts);
+  //const fallbackClient = new EchoClient(fallbackClientOpts);
+  //const restClient = new EchoClient(restClientOpts);
 
   // assuming gRPC server is started locally
-  await testCreateSequence(grpcSequenceClient);
+  // await testCreateSequence(grpcSequenceClient);
+  await streamingNotRetryEligible(grpcSequenceClient);
 
   // await testAttemptSequence(grpcSequenceClient);
   // await testEchoError(grpcClient);
@@ -247,12 +252,126 @@ async function testCreateSequence(client: SequenceServiceClient) {
 
 // 2) Streaming call that is not retry eligible (look at quickstart as an example for call construction)
 // Create (or utilize a client) that has a client config or RetryOptions that define retry behavior
+// We will likely need to pass clientConfig when creating the client options.clientConfig
 // note - RetryRequestOptions is also something there - we eventually want this removed. I think we should ignore for now
 // RetryOptions.retryCodes should have length 0
 // Create a sequence where the first code is NOT retry eligible followed by ones that are
 // make a gax flavored streaming call (utilize quickstart example)
 // assert that no retry is happening - I think that we would just assert there is only a single response even though our sequence should have more than one response
+function noRetryStreamingRequest(){
+  //Note - this was originally copied from the getStreamingSequenceRequest function earlier
+  
+  const request = new protos.google.showcase.v1beta1.CreateStreamingSequenceRequest()
 
+  let firstDelay = new protos.google.protobuf.Duration();
+  firstDelay.nanos=150;
+
+  let firstStatus = new protos.google.rpc.Status();
+  firstStatus.code=14;
+  firstStatus.message="UNAVAILABLE";
+
+  let firstResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  firstResponse.delay=firstDelay;
+  firstResponse.status=firstStatus;
+
+  // The Index you want the stream to fail or send the status 
+  // This  should be index + 1 so if you want to send status at index 0 
+  // you would provide firstResponse.responseIndex=1
+
+  firstResponse.responseIndex=1;
+  
+  let secondDelay = new protos.google.protobuf.Duration();
+  secondDelay.nanos=150;
+
+  let secondStatus = new protos.google.rpc.Status();
+  secondStatus.code=	4;
+  secondStatus.message="DEADLINE_EXCEEDED";
+
+  let secondResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  secondResponse.delay=secondDelay;
+  secondResponse.status=secondStatus;
+  secondResponse.responseIndex=2
+
+  let thirdDelay = new protos.google.protobuf.Duration();
+  thirdDelay.nanos=500000;
+
+  let thirdStatus = new protos.google.rpc.Status();
+  thirdStatus.code=0;
+  thirdStatus.message="OK";
+
+  let thirdResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  thirdResponse.delay=thirdDelay;
+  thirdResponse.status=thirdStatus;
+  thirdResponse.responseIndex=11;
+
+  let streamingSequence = new protos.google.showcase.v1beta1.StreamingSequence()
+  streamingSequence.responses = [firstResponse,secondResponse,thirdResponse];
+  streamingSequence.content = "This is testing the brand new and shiny StreamingSequence server 3";
+  request.streamingSequence = streamingSequence
+
+  return request
+}
+async function streamingNotRetryEligible(client: SequenceServiceClient) {
+  client.initialize()
+  //from quickstart
+
+  // We define call settings object:
+  const settings = new CallSettings();
+  settings.retry = createRetryOptions(
+    /* retryCodes: */ [42],
+    /* backoffSettings: */ createDefaultBackoffSettings()
+  );
+
+  
+  const request = noRetryStreamingRequest();
+  // and use createApiCall to get a promisifed function that handles retries!
+  //const wrappedFunction = createApiCall(request, settings);
+  // Run request
+
+  const response = await client.createStreamingSequence(request);
+  const sequence = response[0]
+
+  let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
+  attemptRequest.name = sequence.name!
+
+  // Inspired by https://pgarciacamou.medium.com/javascript-recursive-re-try-catch-a761ca0c0533
+  async function multipleSequenceAttempts(numberOfAttempts = 1): Promise<stream> {
+      console.log("ATTEMPT %d", numberOfAttempts)
+      const attemptStream = await client.attemptStreamingSequence(attemptRequest)
+      attemptStream.on('data', (response: {content: string}) => {
+        console.log("content: " + response.content);
+      });
+      attemptStream.on('error',async function(e: any) {
+        if (numberOfAttempts > 0) {
+          return await multipleSequenceAttempts(numberOfAttempts - 1)
+        } else {
+          throw e
+        }
+      })
+
+      attemptStream.on('end',async function() {
+        const sequnceReport = sequence.name! + "/streamingSequenceReport"
+    
+        const reportRequest = new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest()
+        reportRequest.name = sequnceReport
+      
+        const report = await client.getStreamingSequenceReport(reportRequest);
+        console.log("report:", report[0].attempts)
+      });
+      return attemptStream
+  }
+
+  let attemptStream;
+  //TODO(coleleah): handle this more elegantly
+  if (sequence.responses){
+    const numResponses = sequence.responses.length
+     attemptStream = await multipleSequenceAttempts(numResponses) 
+  }else{
+    const numResponses = 3
+    attemptStream = await multipleSequenceAttempts(numResponses) 
+
+  }
+}
 // 3) Streaming call that is retry eligible and deals with overrides parameters from json
 // This is likely similar to test 2 only we will be making sure it does retry - parameters from json = retrySettings
 
