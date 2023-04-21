@@ -315,62 +315,63 @@ async function streamingNotRetryEligible(client: SequenceServiceClient) {
   client.initialize()
   //from quickstart
 
-  // We define call settings object:
-  const settings = new CallSettings();
-  settings.retry = createRetryOptions(
-    /* retryCodes: */ [42],
-    /* backoffSettings: */ createDefaultBackoffSettings()
-  );
-
+  
   
   const request = noRetryStreamingRequest();
-  // and use createApiCall to get a promisifed function that handles retries!
-  //const wrappedFunction = createApiCall(request, settings);
+
   // Run request
+  assert.throws(async () => {
+    const response = await client.createStreamingSequence(request);
+    const sequence = response[0]
 
-  const response = await client.createStreamingSequence(request);
-  const sequence = response[0]
+    let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
+    attemptRequest.name = sequence.name!
 
-  let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
-  attemptRequest.name = sequence.name!
+    const attemptStream = client.attemptStreamingSequence(attemptRequest)
 
-  // Inspired by https://pgarciacamou.medium.com/javascript-recursive-re-try-catch-a761ca0c0533
-  async function multipleSequenceAttempts(numberOfAttempts = 1): Promise<stream> {
-      console.log("ATTEMPT %d", numberOfAttempts)
-      const attemptStream = await client.attemptStreamingSequence(attemptRequest)
-      attemptStream.on('data', (response: {content: string}) => {
-        console.log("content: " + response.content);
-      });
-      attemptStream.on('error',async function(e: any) {
-        if (numberOfAttempts > 0) {
-          return await multipleSequenceAttempts(numberOfAttempts - 1)
-        } else {
-          throw e
-        }
-      })
+    attemptStream.on('data', (response: {content: string}) => { console.log("content: " + response.content) });
+    attemptStream.on('error', (err) => {throw(err)});
+    attemptStream.on('end', () => { /* API call completed */ });
+  }, /UNAVAILABLE/)
 
-      attemptStream.on('end',async function() {
-        const sequnceReport = sequence.name! + "/streamingSequenceReport"
+
+  // // Inspired by https://pgarciacamou.medium.com/javascript-recursive-re-try-catch-a761ca0c0533
+  // async function multipleSequenceAttempts(numberOfAttempts = 1): Promise<stream> {
+  //     console.log("ATTEMPT %d", numberOfAttempts)
+  //     const attemptStream = await client.attemptStreamingSequence(attemptRequest)
+  //     attemptStream.on('data', (response: {content: string}) => {
+  //       console.log("content: " + response.content);
+  //     });
+  //     attemptStream.on('error',async function(e: any) {
+  //       if (numberOfAttempts > 0) {
+  //         return await multipleSequenceAttempts(numberOfAttempts - 1)
+  //       } else {
+  //         throw e
+  //       }
+  //     })
+
+  //     attemptStream.on('end',async function() {
+  //       const sequnceReport = sequence.name! + "/streamingSequenceReport"
     
-        const reportRequest = new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest()
-        reportRequest.name = sequnceReport
+  //       const reportRequest = new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest()
+  //       reportRequest.name = sequnceReport
       
-        const report = await client.getStreamingSequenceReport(reportRequest);
-        console.log("report:", report[0].attempts)
-      });
-      return attemptStream
-  }
+  //       const report = await client.getStreamingSequenceReport(reportRequest);
+  //       console.log("report:", report[0].attempts)
+  //     });
+  //     return attemptStream
+  // }
 
-  let attemptStream;
-  //TODO(coleleah): handle this more elegantly
-  if (sequence.responses){
-    const numResponses = sequence.responses.length
-     attemptStream = await multipleSequenceAttempts(numResponses) 
-  }else{
-    const numResponses = 3
-    attemptStream = await multipleSequenceAttempts(numResponses) 
+  // let attemptStream;
+  // //TODO(coleleah): handle this more elegantly
+  // if (sequence.responses){
+  //   const numResponses = sequence.responses.length
+  //    attemptStream = await multipleSequenceAttempts(numResponses) 
+  // }else{
+  //   const numResponses = 3
+  //   attemptStream = await multipleSequenceAttempts(numResponses) 
 
-  }
+  // }
 }
 // 3) Streaming call that is retry eligible and deals with overrides parameters from json
 // This is likely similar to test 2 only we will be making sure it does retry - parameters from json = retrySettings
