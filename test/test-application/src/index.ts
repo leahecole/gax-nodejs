@@ -312,15 +312,11 @@ function noRetryStreamingRequest(){
   return request
 }
 async function streamingNotRetryEligible(client: SequenceServiceClient) {
-  client.initialize()
-  //from quickstart
 
-  
-  
-  const request = noRetryStreamingRequest();
+  const promise = new Promise(async (_, reject) => {
+    client.initialize()
 
-  // Run request
-  assert.throws(async () => {
+    const request = noRetryStreamingRequest();
     const response = await client.createStreamingSequence(request);
     const sequence = response[0]
 
@@ -330,9 +326,17 @@ async function streamingNotRetryEligible(client: SequenceServiceClient) {
     const attemptStream = client.attemptStreamingSequence(attemptRequest)
 
     attemptStream.on('data', (response: {content: string}) => { console.log("content: " + response.content) });
-    attemptStream.on('error', (err) => {throw(err)});
+    attemptStream.on('error', (err) => {reject(err)});
     attemptStream.on('end', () => { /* API call completed */ });
-  }, /UNAVAILABLE/)
+  });
+
+  promise.then(
+  () => {
+    assert(false);
+  },
+  (err: Error) => {
+    assert.match(err.message, /UNAVAILABLE/);
+  })
 
 
   // // Inspired by https://pgarciacamou.medium.com/javascript-recursive-re-try-catch-a761ca0c0533
