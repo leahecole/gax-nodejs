@@ -67,10 +67,9 @@ async function testShowcase() {
   const restClient = new EchoClient(restClientOpts);
 
   // assuming gRPC server is started locally
-  // await testCreateSequence(grpcSequenceClient);
-  // await streamingNotRetryEligible(grpcSequenceClient);
+  await testCreateSequence(grpcSequenceClient);
+  await streamingNotRetryEligible(grpcSequenceClient);
 
-  // await testAttemptSequence(grpcSequenceClient);
   await testEchoError(grpcClient);
   await testExpand(grpcClient);
   await testPagedExpand(grpcClient);
@@ -162,25 +161,6 @@ async function testEcho(client: EchoClient) {
   console.log(response.content)
 }
 
-async function testAttemptSequence(client: SequenceServiceClient) {
-  const name = "sequences/4"
-
-  // Construct request
-  const request = {
-    name: name,
-  };
-
-  // // Run request
-  // try {
-  //   const response = await client.attemptSequence(request);
-  // } catch (err) {
-    const reportRequest = new protos.google.showcase.v1beta1.GetSequenceReportRequest()
-    reportRequest.name = "sequences/8"
-
-    const report = await client.getSequenceReport(reportRequest);
-    console.log(report)
-  // } 
-}
 
 
 async function testCreateSequence(client: SequenceServiceClient) {
@@ -231,21 +211,7 @@ async function testCreateSequence(client: SequenceServiceClient) {
 
   }
 }
-// TESTS TO ADD IN ORDER
-// 1) Streaming call that surfaces gRPC error codes to the caller upon error/retry
-// Make sure we surface multiple error codes
-// Create (or utilize a client) that has a client config or RetryOptions that define retry behavior
-// note - RetryRequestOptions is also something there - we eventually want this removed. I think we should ignore for now
-// RetryOptions.retryCodes should have length > 0 
-// make a gax flavored streaming call - (utilize quickstart) 
-// assert that we get the same number of responses as # of retries that we want
-// assert that the codes surfaced are the gRPC codes from our sequence
-//NOTE - there may be an intermediary version of this test passing with retryRequest working properly
-// At first, this will fail because retry settings will get set to null
-// we can experiment with using retryRequestOptions just to understand existing logic (or not)
 
-
-// 2) Streaming call that is not retry eligible (look at quickstart as an example for call construction)
 function noRetryStreamingRequest(){
   
   const request = new protos.google.showcase.v1beta1.CreateStreamingSequenceRequest()
@@ -324,7 +290,7 @@ async function streamingNotRetryEligible(client: SequenceServiceClient) {
     assert(false);
   },
   (err: Error) => {
-    assert.match(err.message, /UNAVAILABLE/);
+    assert.match(err.message, /UNAVAILABLE/);  // this error message should be the one sent in the first sequence
   })
 
 }
