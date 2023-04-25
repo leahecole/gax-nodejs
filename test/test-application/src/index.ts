@@ -22,8 +22,7 @@ import { EchoClient, SequenceServiceClient,protos } from 'showcase-echo-client';
 import * as assert from 'assert';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
-import { protobuf, grpc, GoogleError, GoogleAuth, CallSettings, createRetryOptions, createDefaultBackoffSettings, createApiCall} from 'google-gax';
-//import { c } from 'tar';
+import { protobuf, grpc, GoogleError, GoogleAuth} from 'google-gax';
 import { google } from 'google-gax/build/protos/operations';
 import { Stream } from 'stream';
 import stream = require('stream');
@@ -60,45 +59,42 @@ async function testShowcase() {
     auth: fakeGoogleAuth,
   };
   
-  //TODO LEAH
-  // pass clientConfig options when creating the client
-  // these will contain retry behavior
 
-  //const grpcClient = new EchoClient(grpcClientOpts);
+  const grpcClient = new EchoClient(grpcClientOpts);
   const grpcSequenceClient = new SequenceServiceClient(grpcClientOpts);
 
-  //const fallbackClient = new EchoClient(fallbackClientOpts);
-  //const restClient = new EchoClient(restClientOpts);
+  const fallbackClient = new EchoClient(fallbackClientOpts);
+  const restClient = new EchoClient(restClientOpts);
 
   // assuming gRPC server is started locally
   // await testCreateSequence(grpcSequenceClient);
-  await streamingNotRetryEligible(grpcSequenceClient);
+  // await streamingNotRetryEligible(grpcSequenceClient);
 
   // await testAttemptSequence(grpcSequenceClient);
-  // await testEchoError(grpcClient);
-  // await testExpand(grpcClient);
-  // await testPagedExpand(grpcClient);
-  // await testPagedExpandAsync(grpcClient);
-  // await testCollect(grpcClient);
-  // await testChat(grpcClient);
-  // await testWait(grpcClient);
+  await testEchoError(grpcClient);
+  await testExpand(grpcClient);
+  await testPagedExpand(grpcClient);
+  await testPagedExpandAsync(grpcClient);
+  await testCollect(grpcClient);
+  await testChat(grpcClient);
+  await testWait(grpcClient);
 
-  // await testEcho(fallbackClient);
-  // await testEchoError(fallbackClient);
-  // await testExpandThrows(fallbackClient); // fallback does not support server streaming
-  // await testPagedExpand(fallbackClient);
-  // await testPagedExpandAsync(fallbackClient);
-  // await testCollectThrows(fallbackClient); // fallback does not support client streaming
-  // await testChatThrows(fallbackClient); // fallback does not support bidi streaming
-  // await testWait(fallbackClient);
+  await testEcho(fallbackClient);
+  await testEchoError(fallbackClient);
+  await testExpandThrows(fallbackClient); // fallback does not support server streaming
+  await testPagedExpand(fallbackClient);
+  await testPagedExpandAsync(fallbackClient);
+  await testCollectThrows(fallbackClient); // fallback does not support client streaming
+  await testChatThrows(fallbackClient); // fallback does not support bidi streaming
+  await testWait(fallbackClient);
 
-  // await testEcho(restClient);
-  // await testExpand(restClient); // REGAPIC supports server streaming
-  // await testPagedExpand(restClient);
-  // await testPagedExpandAsync(restClient);
-  // await testCollectThrows(restClient); // REGAPIC does not support client streaming
-  // await testChatThrows(restClient); // REGAPIC does not support bidi streaming
-  // await testWait(restClient);
+  await testEcho(restClient);
+  await testExpand(restClient); // REGAPIC supports server streaming
+  await testPagedExpand(restClient);
+  await testPagedExpandAsync(restClient);
+  await testCollectThrows(restClient); // REGAPIC does not support client streaming
+  await testChatThrows(restClient); // REGAPIC does not support bidi streaming
+  await testWait(restClient);
 }
 
 function getStreamingSequenceRequest(){
@@ -166,25 +162,25 @@ async function testEcho(client: EchoClient) {
   console.log(response.content)
 }
 
-// async function testAttemptSequence(client: SequenceServiceClient) {
-//   const name = "sequences/4"
+async function testAttemptSequence(client: SequenceServiceClient) {
+  const name = "sequences/4"
 
-//   // Construct request
-//   const request = {
-//     name: name,
-//   };
+  // Construct request
+  const request = {
+    name: name,
+  };
 
-//   // // Run request
-//   // try {
-//   //   const response = await client.attemptSequence(request);
-//   // } catch (err) {
-//     const reportRequest = new protos.google.showcase.v1beta1.GetSequenceReportRequest()
-//     reportRequest.name = "sequences/8"
+  // // Run request
+  // try {
+  //   const response = await client.attemptSequence(request);
+  // } catch (err) {
+    const reportRequest = new protos.google.showcase.v1beta1.GetSequenceReportRequest()
+    reportRequest.name = "sequences/8"
 
-//     const report = await client.getSequenceReport(reportRequest);
-//     console.log(report)
-//   // } 
-// }
+    const report = await client.getSequenceReport(reportRequest);
+    console.log(report)
+  // } 
+}
 
 
 async function testCreateSequence(client: SequenceServiceClient) {
@@ -226,7 +222,6 @@ async function testCreateSequence(client: SequenceServiceClient) {
   }
 
   let attemptStream;
-  //TODO(coleleah): handle this more elegantly
   if (sequence.responses){
     const numResponses = sequence.responses.length
      attemptStream = await multipleSequenceAttempts(numResponses) 
@@ -251,15 +246,7 @@ async function testCreateSequence(client: SequenceServiceClient) {
 
 
 // 2) Streaming call that is not retry eligible (look at quickstart as an example for call construction)
-// Create (or utilize a client) that has a client config or RetryOptions that define retry behavior
-// We will likely need to pass clientConfig when creating the client options.clientConfig
-// note - RetryRequestOptions is also something there - we eventually want this removed. I think we should ignore for now
-// RetryOptions.retryCodes should have length 0
-// Create a sequence where the first code is NOT retry eligible followed by ones that are
-// make a gax flavored streaming call (utilize quickstart example)
-// assert that no retry is happening - I think that we would just assert there is only a single response even though our sequence should have more than one response
 function noRetryStreamingRequest(){
-  //Note - this was originally copied from the getStreamingSequenceRequest function earlier
   
   const request = new protos.google.showcase.v1beta1.CreateStreamingSequenceRequest()
 
@@ -280,6 +267,7 @@ function noRetryStreamingRequest(){
 
   firstResponse.responseIndex=1;
   
+  // We should never get to this sequence in this test because the call should not retry
   let secondDelay = new protos.google.protobuf.Duration();
   secondDelay.nanos=150;
 
@@ -292,6 +280,7 @@ function noRetryStreamingRequest(){
   secondResponse.status=secondStatus;
   secondResponse.responseIndex=2
 
+  // We should never get to this sequence in this test because the call should not retry
   let thirdDelay = new protos.google.protobuf.Duration();
   thirdDelay.nanos=500000;
 
@@ -338,370 +327,295 @@ async function streamingNotRetryEligible(client: SequenceServiceClient) {
     assert.match(err.message, /UNAVAILABLE/);
   })
 
-
-  // // Inspired by https://pgarciacamou.medium.com/javascript-recursive-re-try-catch-a761ca0c0533
-  // async function multipleSequenceAttempts(numberOfAttempts = 1): Promise<stream> {
-  //     console.log("ATTEMPT %d", numberOfAttempts)
-  //     const attemptStream = await client.attemptStreamingSequence(attemptRequest)
-  //     attemptStream.on('data', (response: {content: string}) => {
-  //       console.log("content: " + response.content);
-  //     });
-  //     attemptStream.on('error',async function(e: any) {
-  //       if (numberOfAttempts > 0) {
-  //         return await multipleSequenceAttempts(numberOfAttempts - 1)
-  //       } else {
-  //         throw e
-  //       }
-  //     })
-
-  //     attemptStream.on('end',async function() {
-  //       const sequnceReport = sequence.name! + "/streamingSequenceReport"
-    
-  //       const reportRequest = new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest()
-  //       reportRequest.name = sequnceReport
-      
-  //       const report = await client.getStreamingSequenceReport(reportRequest);
-  //       console.log("report:", report[0].attempts)
-  //     });
-  //     return attemptStream
-  // }
-
-  // let attemptStream;
-  // //TODO(coleleah): handle this more elegantly
-  // if (sequence.responses){
-  //   const numResponses = sequence.responses.length
-  //    attemptStream = await multipleSequenceAttempts(numResponses) 
-  // }else{
-  //   const numResponses = 3
-  //   attemptStream = await multipleSequenceAttempts(numResponses) 
-
-  // }
 }
-// 3) Streaming call that is retry eligible and deals with overrides parameters from json
-// This is likely similar to test 2 only we will be making sure it does retry - parameters from json = retrySettings
 
-// 4) Streaming call that is cancelled
-// We might be able to use the echo client here instead of sequence streaming
-// create a client
-// make a call and cancel it partway through
-// assert that the cancellation grpc code is surfaced
-// assert other cancellation behavior - like, if we cancel midway through receiving data, that the expected amount of data is received
-
-// 5) Streaming call that gets stopped midway and continues collecting afterwards
-// this is likely similar to the plain old retry test but will have to do with data picking up where it left off
-// this is important for bigtable for testing retry behavior
-// 6) Streaming call with retryRequest options that get converted to retry (maybe? TBD)
-// this is a test for backwards compatibility that can probably come after having a working solution in place
-
-// async function testCreateSequence(client: SequenceServiceClient) {
-//   client.initialize()
-//   const request = getSequenceRequest();
-//   // Run request
-
-//   const response = await client.createSequence(request);
-//   const sequence = response[0]
-
-//   // console.log(response)
-//   // console.log(sequence.name)
-
-//   let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
-//   attemptRequest.content = "10";
-//   attemptRequest.name = sequence.name!
-
-//   // Inspired by https://pgarciacamou.medium.com/javascript-recursive-re-try-catch-a761ca0c0533
-//   const attemptStream = await client.attemptStreamingSequence(attemptRequest)
-//   attemptStream.on('data', (response: {content: string}) => {
-//     console.log(response.content);
-//   });
-
-  // console.log(attemptResponse)
   
-//}
-// async function testEchoError(client: EchoClient) {
-//   const fixtureName = path.resolve(
-//     __dirname,
-//     '..',
-//     '..',
-//     '..',
-//     'fixtures',
-//     'multipleErrors.json'
-//   );
-//   const protosPath = path.resolve(
-//     __dirname,
-//     '..',
-//     '..',
-//     '..',
-//     '..',
-//     'build',
-//     'protos',
-//     'google',
-//     'rpc'
-//   );
 
-//   const data = await fsp.readFile(fixtureName, 'utf8');
-//   const root = protobuf.loadSync(path.join(protosPath, 'error_details.proto'));
-//   const objs = JSON.parse(data);
-//   const details = [];
-//   const expectedDetails = [];
-//   let errorInfo: {domain: string; reason: string; metadata: [string, string]};
-//   for (const obj of objs) {
-//     const MessageType = root.lookupType(obj.type);
-//     const buffer = MessageType.encode(obj.value).finish();
-//     details.push({
-//       type_url: 'type.googleapis.com/' + obj.type,
-//       value: buffer,
-//     });
-//     expectedDetails.push(obj.value);
-//     if (obj.type === 'google.rpc.ErrorInfo') {
-//       errorInfo = obj.value;
-//     }
-//   }
-//   const request = {
-//     error: {
-//       code: 3,
-//       message: 'Test error',
-//       details: details,
-//     },
-//   };
-//   const timer = setTimeout(() => {
-//     throw new Error('End-to-end testEchoError method fails with timeout');
-//   }, 12000);
-//   await assert.rejects(() => client.echo(request), Error);
-//   try {
-//     await client.echo(request);
-//   } catch (err) {
-//     clearTimeout(timer);
-//     assert.strictEqual(
-//       JSON.stringify((err as GoogleError).statusDetails),
-//       JSON.stringify(expectedDetails)
-//     );
-//     assert.ok(errorInfo!);
-//     assert.strictEqual((err as GoogleError).domain, errorInfo!.domain);
-//     assert.strictEqual((err as GoogleError).reason, errorInfo!.reason);
-//     assert.strictEqual(
-//       JSON.stringify((err as GoogleError).errorInfoMetadata),
-//       JSON.stringify(errorInfo!.metadata)
-//     );
-//   }
-// }
+async function testEchoError(client: EchoClient) {
+  const fixtureName = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'fixtures',
+    'multipleErrors.json'
+  );
+  const protosPath = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    '..',
+    'build',
+    'protos',
+    'google',
+    'rpc'
+  );
 
-// async function testExpand(client: EchoClient) {
-//   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
-//   const request = {
-//     content: words.join(' '),
-//   };
-//   const stream = client.expand(request);
-//   const result: string[] = [];
-//   stream.on('data', (response: {content: string}) => {
-//     result.push(response.content);
-//   });
-//   stream.on('end', () => {
-//     assert.deepStrictEqual(words, result);
-//   });
-// }
+  const data = await fsp.readFile(fixtureName, 'utf8');
+  const root = protobuf.loadSync(path.join(protosPath, 'error_details.proto'));
+  const objs = JSON.parse(data);
+  const details = [];
+  const expectedDetails = [];
+  let errorInfo: {domain: string; reason: string; metadata: [string, string]};
+  for (const obj of objs) {
+    const MessageType = root.lookupType(obj.type);
+    const buffer = MessageType.encode(obj.value).finish();
+    details.push({
+      type_url: 'type.googleapis.com/' + obj.type,
+      value: buffer,
+    });
+    expectedDetails.push(obj.value);
+    if (obj.type === 'google.rpc.ErrorInfo') {
+      errorInfo = obj.value;
+    }
+  }
+  const request = {
+    error: {
+      code: 3,
+      message: 'Test error',
+      details: details,
+    },
+  };
+  const timer = setTimeout(() => {
+    throw new Error('End-to-end testEchoError method fails with timeout');
+  }, 12000);
+  await assert.rejects(() => client.echo(request), Error);
+  try {
+    await client.echo(request);
+  } catch (err) {
+    clearTimeout(timer);
+    assert.strictEqual(
+      JSON.stringify((err as GoogleError).statusDetails),
+      JSON.stringify(expectedDetails)
+    );
+    assert.ok(errorInfo!);
+    assert.strictEqual((err as GoogleError).domain, errorInfo!.domain);
+    assert.strictEqual((err as GoogleError).reason, errorInfo!.reason);
+    assert.strictEqual(
+      JSON.stringify((err as GoogleError).errorInfoMetadata),
+      JSON.stringify(errorInfo!.metadata)
+    );
+  }
+}
 
-// async function testExpandThrows(client: EchoClient) {
-//   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
-//   const request = {
-//     content: words.join(' '),
-//   };
-//   assert.throws(() => {
-//     const stream = client.expand(request);
-//     const result: string[] = [];
-//     stream.on('data', (response: {content: string}) => {
-//       result.push(response.content);
-//     });
-//     stream.on('end', () => {
-//       assert.deepStrictEqual(words, result);
-//     });
-//   }, /currently does not support/);
-// }
+async function testExpand(client: EchoClient) {
+  const words = ['nobody', 'ever', 'reads', 'test', 'input'];
+  const request = {
+    content: words.join(' '),
+  };
+  const stream = client.expand(request);
+  const result: string[] = [];
+  stream.on('data', (response: {content: string}) => {
+    result.push(response.content);
+  });
+  stream.on('end', () => {
+    assert.deepStrictEqual(words, result);
+  });
+}
 
-// async function testPagedExpand(client: EchoClient) {
-//   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
-//   const request = {
-//     content: words.join(' '),
-//     pageSize: 2,
-//   };
-//   const timer = setTimeout(() => {
-//     throw new Error('End-to-end testPagedExpand method fails with timeout');
-//   }, 12000);
-//   const [response] = await client.pagedExpand(request);
-//   clearTimeout(timer);
-//   const result = response.map(r => r.content);
-//   assert.deepStrictEqual(words, result);
-// }
+async function testExpandThrows(client: EchoClient) {
+  const words = ['nobody', 'ever', 'reads', 'test', 'input'];
+  const request = {
+    content: words.join(' '),
+  };
+  assert.throws(() => {
+    const stream = client.expand(request);
+    const result: string[] = [];
+    stream.on('data', (response: {content: string}) => {
+      result.push(response.content);
+    });
+    stream.on('end', () => {
+      assert.deepStrictEqual(words, result);
+    });
+  }, /currently does not support/);
+}
 
-// async function testPagedExpandAsync(client: EchoClient) {
-//   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
-//   const request = {
-//     content: words.join(' '),
-//     pageSize: 2,
-//   };
-//   const response = [];
-//   const iterable = client.pagedExpandAsync(request);
-//   const timer = setTimeout(() => {
-//     throw new Error(
-//       'End-to-end testPagedExpandAsync method fails with timeout'
-//     );
-//   }, 12000);
-//   for await (const resource of iterable) {
-//     response.push(resource.content);
-//   }
-//   clearTimeout(timer);
-//   assert.deepStrictEqual(words, response);
-// }
+async function testPagedExpand(client: EchoClient) {
+  const words = ['nobody', 'ever', 'reads', 'test', 'input'];
+  const request = {
+    content: words.join(' '),
+    pageSize: 2,
+  };
+  const timer = setTimeout(() => {
+    throw new Error('End-to-end testPagedExpand method fails with timeout');
+  }, 12000);
+  const [response] = await client.pagedExpand(request);
+  clearTimeout(timer);
+  const result = response.map(r => r.content);
+  assert.deepStrictEqual(words, result);
+}
 
-// async function testCollect(client: EchoClient) {
-//   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
-//   const promise = new Promise<string>((resolve, reject) => {
-//     try {
-//       const stream = client.collect((err, result) => {
-//         if (err || !result) {
-//           reject(err);
-//         } else {
-//           resolve(result.content ?? '');
-//         }
-//       });
-//       for (const word of words) {
-//         const request = {content: word};
-//         stream.write(request);
-//       }
-//       stream.on('data', (result: {content: String}) => {
-//         assert.deepStrictEqual(result.content, words.join(' '));
-//       });
-//       stream.end();
-//     } catch (err) {
-//       reject(err);
-//     }
-//   });
-//   const result = await promise;
-//   assert.strictEqual(result, words.join(' '));
-// }
+async function testPagedExpandAsync(client: EchoClient) {
+  const words = ['nobody', 'ever', 'reads', 'test', 'input'];
+  const request = {
+    content: words.join(' '),
+    pageSize: 2,
+  };
+  const response = [];
+  const iterable = client.pagedExpandAsync(request);
+  const timer = setTimeout(() => {
+    throw new Error(
+      'End-to-end testPagedExpandAsync method fails with timeout'
+    );
+  }, 12000);
+  for await (const resource of iterable) {
+    response.push(resource.content);
+  }
+  clearTimeout(timer);
+  assert.deepStrictEqual(words, response);
+}
 
-// async function testCollectThrows(client: EchoClient) {
-//   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
-//   const promise = new Promise<string>((resolve, reject) => {
-//     try {
-//       const stream = client.collect((err, result) => {
-//         if (err || !result) {
-//           reject(err);
-//         } else {
-//           resolve(result.content ?? '');
-//         }
-//       });
-//       for (const word of words) {
-//         const request = {content: word};
-//         stream.write(request);
-//       }
-//       stream.on('data', (result: {content: String}) => {
-//         assert.deepStrictEqual(result.content, words.join(' '));
-//       });
-//       stream.end();
-//     } catch (err) {
-//       reject(err);
-//     }
-//   });
-//   // We expect the promise to be rejected
-//   promise.then(
-//     () => {
-//       assert(false);
-//     },
-//     (err: Error) => {
-//       assert.match(err.message, /currently does not support/);
-//     }
-//   );
-// }
+async function testCollect(client: EchoClient) {
+  const words = ['nobody', 'ever', 'reads', 'test', 'input'];
+  const promise = new Promise<string>((resolve, reject) => {
+    try {
+      const stream = client.collect((err, result) => {
+        if (err || !result) {
+          reject(err);
+        } else {
+          resolve(result.content ?? '');
+        }
+      });
+      for (const word of words) {
+        const request = {content: word};
+        stream.write(request);
+      }
+      stream.on('data', (result: {content: String}) => {
+        assert.deepStrictEqual(result.content, words.join(' '));
+      });
+      stream.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+  const result = await promise;
+  assert.strictEqual(result, words.join(' '));
+}
 
-// async function testChat(client: EchoClient) {
-//   const words = [
-//     'nobody',
-//     'ever',
-//     'reads',
-//     'test',
-//     'input',
-//     'especially',
-//     'this',
-//     'one',
-//   ];
-//   const promise = new Promise((resolve, reject) => {
-//     try {
-//       const result: string[] = [];
-//       const stream = client.chat();
-//       stream.on('data', (response: {content: string}) => {
-//         result.push(response.content);
-//       });
-//       stream.on('end', () => {
-//         resolve(result);
-//       });
-//       stream.on('error', reject);
-//       for (const word of words) {
-//         stream.write({content: word});
-//       }
-//       stream.end();
-//     } catch (err) {
-//       reject(err);
-//     }
-//   });
-//   const result = await promise;
-//   assert.deepStrictEqual(result, words);
-// }
+async function testCollectThrows(client: EchoClient) {
+  const words = ['nobody', 'ever', 'reads', 'test', 'input'];
+  const promise = new Promise<string>((resolve, reject) => {
+    try {
+      const stream = client.collect((err, result) => {
+        if (err || !result) {
+          reject(err);
+        } else {
+          resolve(result.content ?? '');
+        }
+      });
+      for (const word of words) {
+        const request = {content: word};
+        stream.write(request);
+      }
+      stream.on('data', (result: {content: String}) => {
+        assert.deepStrictEqual(result.content, words.join(' '));
+      });
+      stream.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+  // We expect the promise to be rejected
+  promise.then(
+    () => {
+      assert(false);
+    },
+    (err: Error) => {
+      assert.match(err.message, /currently does not support/);
+    }
+  );
+}
 
-// async function testChatThrows(client: EchoClient) {
-//   const words = [
-//     'nobody',
-//     'ever',
-//     'reads',
-//     'test',
-//     'input',
-//     'especially',
-//     'this',
-//     'one',
-//   ];
-//   const promise = new Promise((resolve, reject) => {
-//     try {
-//       const result: string[] = [];
-//       const stream = client.chat();
-//       stream.on('data', (response: {content: string}) => {
-//         result.push(response.content);
-//       });
-//       stream.on('end', () => {
-//         resolve(result);
-//       });
-//       stream.on('error', reject);
-//       for (const word of words) {
-//         stream.write({content: word});
-//       }
-//       stream.end();
-//     } catch (err) {
-//       reject(err);
-//     }
-//   });
-//   // We expect the promise to be rejected
-//   promise.then(
-//     () => {
-//       assert(false);
-//     },
-//     (err: Error) => {
-//       assert.match(err.message, /currently does not support/);
-//     }
-//   );
-// }
+async function testChat(client: EchoClient) {
+  const words = [
+    'nobody',
+    'ever',
+    'reads',
+    'test',
+    'input',
+    'especially',
+    'this',
+    'one',
+  ];
+  const promise = new Promise((resolve, reject) => {
+    try {
+      const result: string[] = [];
+      const stream = client.chat();
+      stream.on('data', (response: {content: string}) => {
+        result.push(response.content);
+      });
+      stream.on('end', () => {
+        resolve(result);
+      });
+      stream.on('error', reject);
+      for (const word of words) {
+        stream.write({content: word});
+      }
+      stream.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+  const result = await promise;
+  assert.deepStrictEqual(result, words);
+}
 
-// async function testWait(client: EchoClient) {
-//   const request = {
-//     ttl: {
-//       seconds: 5,
-//       nanos: 0,
-//     },
-//     success: {
-//       content: 'done',
-//     },
-//   };
-//   const [operation] = await client.wait(request);
-//   const [response] = await operation.promise();
-//   assert.deepStrictEqual(response.content, request.success.content);
-// }
+async function testChatThrows(client: EchoClient) {
+  const words = [
+    'nobody',
+    'ever',
+    'reads',
+    'test',
+    'input',
+    'especially',
+    'this',
+    'one',
+  ];
+  const promise = new Promise((resolve, reject) => {
+    try {
+      const result: string[] = [];
+      const stream = client.chat();
+      stream.on('data', (response: {content: string}) => {
+        result.push(response.content);
+      });
+      stream.on('end', () => {
+        resolve(result);
+      });
+      stream.on('error', reject);
+      for (const word of words) {
+        stream.write({content: word});
+      }
+      stream.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+  // We expect the promise to be rejected
+  promise.then(
+    () => {
+      assert(false);
+    },
+    (err: Error) => {
+      assert.match(err.message, /currently does not support/);
+    }
+  );
+}
+
+async function testWait(client: EchoClient) {
+  const request = {
+    ttl: {
+      seconds: 5,
+      nanos: 0,
+    },
+    success: {
+      content: 'done',
+    },
+  };
+  const [operation] = await client.wait(request);
+  const [response] = await operation.promise();
+  assert.deepStrictEqual(response.content, request.success.content);
+}
 
 async function main() {
   await testShowcase();
