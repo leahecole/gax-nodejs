@@ -16,7 +16,7 @@
 
 'use strict';
 import { EchoClient, SequenceServiceClient,protos } from 'showcase-echo-client';
-import {ShowcaseServer} from 'showcase-server';
+
 
 
 import * as assert from 'assert';
@@ -281,7 +281,10 @@ async function streamingNotRetryEligible(client: SequenceServiceClient) {
     const attemptStream = client.attemptStreamingSequence(attemptRequest)
 
     attemptStream.on('data', (response: {content: string}) => { console.log("content: " + response.content) });
-    attemptStream.on('error', (err) => {reject(err)});
+    // Alex - We needed to "reject" this error instead of throwing it in order to make the test work
+    // should we be able to have this test work properly with throw(err) instead of reject?
+    // if so, we may need to make a change to the sequence service
+    attemptStream.on('error', (err) => {reject(err)});  
     attemptStream.on('end', () => { /* API call completed */ });
   });
 
@@ -290,7 +293,7 @@ async function streamingNotRetryEligible(client: SequenceServiceClient) {
     assert(false);
   },
   (err: Error) => {
-    assert.match(err.message, /UNAVAILABLE/);  // this error message should be the one sent in the first sequence
+    assert.match(err.message, /UNAVAILABLE/);  // this error message should be the one sent in the first
   })
 
 }
@@ -584,13 +587,7 @@ async function testWait(client: EchoClient) {
 }
 
 async function main() {
-  const showcaseServer = new ShowcaseServer();
-  try {
-    await showcaseServer.start();
-    await testShowcase();
-  } finally {
-    showcaseServer.stop();
-  }
+  await testShowcase();
 }
 
 main();
