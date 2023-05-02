@@ -13,11 +13,7 @@
     "@grpc/grpc-js": "~1.8.0",
     "@grpc/proto-loader": "^0.7.0",
     "@types/long": "^4.0.0",
-<<<<<<< HEAD
-=======
     "@types/rimraf": "^3.0.2",
-    "@types/tar": "^6.1.4",
->>>>>>> 141a30a (WIP: edit streamingNotRetryEligible test)
     "abort-controller": "^3.0.0",
     "duplexify": "^4.0.0",
     "google-auth-library": "^8.0.2",
