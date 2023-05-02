@@ -22,7 +22,7 @@ import { EchoClient, SequenceServiceClient,protos } from 'showcase-echo-client';
 import * as assert from 'assert';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
-import { protobuf, grpc, GoogleError, GoogleAuth} from 'google-gax';
+import { protobuf, grpc, GoogleError, GoogleAuth, Status} from 'google-gax';
 import stream = require('stream');
 
 async function testShowcase() {
@@ -102,7 +102,7 @@ function getStreamingSequenceRequest(){
   firstDelay.nanos=150;
 
   let firstStatus = new protos.google.rpc.Status();
-  firstStatus.code=14;
+  firstStatus.code=Status.UNAVAILABLE;
   firstStatus.message="UNAVAILABLE";
 
   let firstResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
@@ -119,7 +119,7 @@ function getStreamingSequenceRequest(){
   secondDelay.nanos=150;
 
   let secondStatus = new protos.google.rpc.Status();
-  secondStatus.code=	4;
+  secondStatus.code=Status.DEADLINE_EXCEEDED;
   secondStatus.message="DEADLINE_EXCEEDED";
 
   let secondResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
@@ -131,7 +131,7 @@ function getStreamingSequenceRequest(){
   thirdDelay.nanos=500000;
 
   let thirdStatus = new protos.google.rpc.Status();
-  thirdStatus.code=0;
+  thirdStatus.code=Status.OK;
   thirdStatus.message="OK";
 
   let thirdResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
@@ -219,7 +219,7 @@ function noRetryStreamingRequest(){
   firstDelay.nanos=150;
 
   let firstStatus = new protos.google.rpc.Status();
-  firstStatus.code=14;
+  firstStatus.code=Status.UNAVAILABLE;
   firstStatus.message="UNAVAILABLE";
 
   let firstResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
@@ -237,7 +237,7 @@ function noRetryStreamingRequest(){
   secondDelay.nanos=150;
 
   let secondStatus = new protos.google.rpc.Status();
-  secondStatus.code=	4;
+  secondStatus.code=Status.DEADLINE_EXCEEDED;
   secondStatus.message="DEADLINE_EXCEEDED";
 
   let secondResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
@@ -250,7 +250,7 @@ function noRetryStreamingRequest(){
   thirdDelay.nanos=500000;
 
   let thirdStatus = new protos.google.rpc.Status();
-  thirdStatus.code=0;
+  thirdStatus.code=Status.OK;
   thirdStatus.message="OK";
 
   let thirdResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
