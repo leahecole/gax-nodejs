@@ -26,8 +26,7 @@
     "proto3-json-serializer": "^1.0.0",
     "protobufjs": "7.2.3",
     "protobufjs-cli": "1.1.1",
-    "retry-request": "^5.0.0",
-    "tar": "^6.1.13"
+    "retry-request": "^5.0.0"
   },
   "devDependencies": {
     "@compodoc/compodoc": "1.1.19",
