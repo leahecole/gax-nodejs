@@ -23,8 +23,6 @@ import * as assert from 'assert';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
 import { protobuf, grpc, GoogleError, GoogleAuth} from 'google-gax';
-import { google } from 'google-gax/build/protos/operations';
-import { Stream } from 'stream';
 import stream = require('stream');
 
 async function testShowcase() {
@@ -70,6 +68,7 @@ async function testShowcase() {
   await testCreateSequence(grpcSequenceClient);
   await streamingNotRetryEligible(grpcSequenceClient);
 
+  await testEcho(grpcClient);
   await testEchoError(grpcClient);
   await testExpand(grpcClient);
   await testPagedExpand(grpcClient);
