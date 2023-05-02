@@ -16,7 +16,7 @@
 
 'use strict';
 import { EchoClient, SequenceServiceClient,protos } from 'showcase-echo-client';
-
+import {ShowcaseServer} from 'showcase-server';
 
 
 import * as assert from 'assert';
@@ -586,7 +586,14 @@ async function testWait(client: EchoClient) {
 }
 
 async function main() {
-  await testShowcase();
+  const showcaseServer = new ShowcaseServer();
+  try {
+    await showcaseServer.start();
+    await testShowcase();
+  } finally {
+    showcaseServer.stop();
+  }
 }
+
 
 main();
