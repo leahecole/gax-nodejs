@@ -43,11 +43,11 @@
     "google-gax": "./google-gax.tgz"
   },
   "devDependencies": {
-    "@types/node": "^18.11.18",
-    "typescript": "^4.8.4",
-    "gts": "^3.1.1"
+    "@types/node": "^16.0.0",
+    "gapic-tools": "^0.1.7",
+    "typescript": "^4.5.5"
   },
   "engines": {
-    "node": ">=v12"
+    "node": ">=v14"
   }
 }
