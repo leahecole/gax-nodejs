@@ -12,5 +12,6 @@
     "src/*/*.ts",
     "test/system-test/*.ts",
     "test/unit/*.ts",
+    "tools/*.ts"
   ]
 }

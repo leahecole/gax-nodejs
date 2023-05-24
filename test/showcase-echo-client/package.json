@@ -43,25 +43,10 @@
     "google-gax": "./google-gax.tgz"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.1",
-    "@types/node": "^18.11.18",
-    "@types/sinon": "^10.0.14",
-    "c8": "^7.13.0",
-    "gts": "^3.1.1",
-    "jsdoc": "^4.0.2",
-    "jsdoc-fresh": "^2.0.1",
-    "jsdoc-region-tag": "^2.0.1",
-    "linkinator": "^4.1.2",
-    "mocha": "^10.2.0",
-    "null-loader": "^4.0.1",
-    "pack-n-play": "^1.0.0-2",
-    "sinon": "^15.0.4",
-    "ts-loader": "^8.4.0",
-    "typescript": "^4.8.4",
-    "webpack": "^4.46.0",
-    "webpack-cli": "^4.10.0"
+    "@types/node": "^16.0.0",
+    "typescript": "^4.5.5"
   },
   "engines": {
-    "node": ">=v14"
+    "node": ">=v12"
   }
 }
