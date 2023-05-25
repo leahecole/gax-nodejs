@@ -47,7 +47,8 @@ export class StreamingApiCaller implements APICaller {
     return new StreamProxy(
       this.descriptor.type,
       callback,
-      this.descriptor.rest
+      this.descriptor.rest,
+      this.descriptor.gaxStreamingRetries,
     );
   }
 

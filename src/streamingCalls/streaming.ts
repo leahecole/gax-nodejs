@@ -26,6 +26,7 @@ import {
 } from '../apitypes';
 import {RetryRequestOptions} from '../gax';
 import {GoogleError} from '../googleError';
+import {streamingRetryRequest} from '../streamingRetries';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const duplexify: DuplexifyConstructor = require('duplexify');
@@ -84,6 +85,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   stream?: CancellableStream;
   private _responseHasSent: boolean;
   rest?: boolean;
+  new_retry?: boolean;
   /**
    * StreamProxy is a proxy to gRPC-streaming method.
    *
@@ -92,7 +94,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    * @param {StreamType} type - the type of gRPC stream.
    * @param {ApiCallback} callback - the callback for further API call.
    */
-  constructor(type: StreamType, callback: APICallback, rest?: boolean) {
+  constructor(type: StreamType, callback: APICallback, rest?: boolean, new_retry?:boolean) {
     super(undefined, undefined, {
       objectMode: true,
       readable: type !== StreamType.CLIENT_STREAMING,
@@ -103,6 +105,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     this._isCancelCalled = false;
     this._responseHasSent = false;
     this.rest = rest;
+    this.new_retry = new_retry;
   }
 
   cancel() {
@@ -120,6 +123,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   forwardEvents(stream: Stream) {
     const eventsToForward = ['metadata', 'response', 'status'];
     eventsToForward.forEach(event => {
+  
       stream.on(event, this.emit.bind(this, event));
     });
 
@@ -169,11 +173,35 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     retryRequestOptions: RetryRequestOptions = {}
   ) {
     if (this.type === StreamType.SERVER_STREAMING) {
+      console.log(this.type)
+      console.log("HELLO")
       if (this.rest) {
         const stream = apiCall(argument, this._callback) as CancellableStream;
         this.stream = stream;
         this.setReadable(stream);
-      } else {
+      
+      } else if(this.new_retry){
+        console.log("In New retry request")
+        const retryStream = streamingRetryRequest(null, {
+          objectMode: true,
+          request: () => {
+            if (this._isCancelCalled) {
+              if (this.stream) {
+                this.stream.cancel();
+              }
+              return;
+            }
+            const stream = apiCall(
+              argument,
+              this._callback
+            ) as CancellableStream;
+            this.stream = stream;
+            this.forwardEvents(stream);
+            return stream;
+          },
+        },null);
+        this.setReadable(retryStream);
+      }else {
         const retryStream = retryRequest(null, {
           objectMode: true,
           request: () => {

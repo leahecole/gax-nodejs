@@ -77,9 +77,9 @@ export function createApiCall(
     let currentApiCaller = apiCaller;
     // special case: if bundling is disabled for this one call,
     // use default API caller instead
-    if (settings.isBundling && !thisSettings.isBundling) {
-      currentApiCaller = createAPICaller(settings, undefined);
-    }
+    // if (settings.isBundling && !thisSettings.isBundling) {
+    //   currentApiCaller = createAPICaller(settings, undefined);
+    // }
 
     const ongoingCall = currentApiCaller.init(callback);
     funcPromise
