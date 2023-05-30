@@ -31,6 +31,12 @@ async function testShowcase() {
     sslCreds: grpc.credentials.createInsecure(),
   };
 
+  const grpcClientOptsWithNewRetry = {
+    grpc,
+    sslCreds: grpc.credentials.createInsecure(),
+    newRetry: true
+  };
+
   const fakeGoogleAuth = {
     getClient: async () => {
       return {
@@ -57,9 +63,11 @@ async function testShowcase() {
     auth: fakeGoogleAuth,
   };
   
-
   const grpcClient = new EchoClient(grpcClientOpts);
   const grpcSequenceClient = new SequenceServiceClient(grpcClientOpts);
+
+  const grpcClientWithNewRetry = new EchoClient(grpcClientOptsWithNewRetry);
+  const grpcSequenceClientWithNewRetry = new SequenceServiceClient(grpcClientOptsWithNewRetry);
 
   const fallbackClient = new EchoClient(fallbackClientOpts);
   const restClient = new EchoClient(restClientOpts);
@@ -93,6 +101,19 @@ async function testShowcase() {
   await testCollectThrows(restClient); // REGAPIC does not support client streaming
   await testChatThrows(restClient); // REGAPIC does not support bidi streaming
   await testWait(restClient);
+
+  // Testing with newRetry being true 
+  await testCreateSequence(grpcSequenceClientWithNewRetry);
+  await streamingNotRetryEligible(grpcSequenceClientWithNewRetry);
+
+  await testEcho(grpcClientWithNewRetry);
+  await testEchoError(grpcClientWithNewRetry);
+  await testExpand(grpcClientWithNewRetry);
+  await testPagedExpand(grpcClientWithNewRetry);
+  await testPagedExpandAsync(grpcClientWithNewRetry);
+  await testCollect(grpcClientWithNewRetry);
+  await testChat(grpcClientWithNewRetry);
+  await testWait(grpcClientWithNewRetry);
 }
 
 function getStreamingSequenceRequest(){
@@ -157,7 +178,6 @@ async function testEcho(client: EchoClient) {
   const [response] = await client.echo(request);
   clearTimeout(timer);
   assert.deepStrictEqual(request.content, response.content);
-  console.log(response.content)
 }
 
 
@@ -169,17 +189,14 @@ async function testCreateSequence(client: SequenceServiceClient) {
 
   const response = await client.createStreamingSequence(request);
   const sequence = response[0]
+  let reports: any[] = []
 
   let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
   attemptRequest.name = sequence.name!
 
   // Inspired by https://pgarciacamou.medium.com/javascript-recursive-re-try-catch-a761ca0c0533
   async function multipleSequenceAttempts(numberOfAttempts = 1): Promise<stream> {
-      console.log("ATTEMPT %d", numberOfAttempts)
       const attemptStream = await client.attemptStreamingSequence(attemptRequest)
-      attemptStream.on('data', (response: {content: string}) => {
-        console.log("content: " + response.content);
-      });
       attemptStream.on('error',async function(e: any) {
         if (numberOfAttempts > 0) {
           return await multipleSequenceAttempts(numberOfAttempts - 1)
@@ -195,7 +212,10 @@ async function testCreateSequence(client: SequenceServiceClient) {
         reportRequest.name = sequnceReport
       
         const report = await client.getStreamingSequenceReport(reportRequest);
-        console.log("report:", report[0].attempts)
+
+        assert.equal(report[0].attempts![0].contentSent,"This ")
+        assert.equal(report[0].attempts![1].contentSent,"This is ")
+        assert.equal(report[0].attempts![1].contentSent,"This is testing the brand new and shiny StreamingSequence server 3 ")
       });
       return attemptStream
   }
@@ -207,7 +227,6 @@ async function testCreateSequence(client: SequenceServiceClient) {
   }else{
     const numResponses = 3
     attemptStream = await multipleSequenceAttempts(numResponses) 
-
   }
 }
 
@@ -586,13 +605,14 @@ async function testWait(client: EchoClient) {
 }
 
 async function main() {
-  const showcaseServer = new ShowcaseServer();
-  try {
-    await showcaseServer.start();
-    await testShowcase();
-  } finally {
-    showcaseServer.stop();
-  }
+  // const showcaseServer = new ShowcaseServer();
+  // try {
+  //   await showcaseServer.start();
+  //   await testShowcase();
+  // } finally {
+  //   showcaseServer.stop();
+  // }
+  await testShowcase();
 }
 
 

@@ -28,8 +28,9 @@ const DEFAULTS = {
     considerably beyond it).  The total time starting from when the initial
     request is sent, after which an error will be returned, regardless of the
     retrying attempts made meanwhile.
-   */
-    totalTimeoutMillis: 600000,
+  */
+  totalTimeoutMillis: 600000,
+
   /*
     The initial delay time, in milliseconds, between the completion of the first 
     failed request and the initiation of the first retrying request.
@@ -67,10 +68,6 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
     callback = opts;
   }
 
-  const manualCurrentRetryAttemptWasSet =
-    opts && typeof opts.currentRetryAttempt === 'number';
-  opts = extend({}, DEFAULTS, opts);
-
   if (typeof opts.request === 'undefined') {
     try {
       // eslint-disable-next-line node/no-unpublished-require
@@ -79,8 +76,6 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
       throw new Error('A request library must be provided to retry-request.');
     }
   }
-
-  let currentRetryAttempt = opts.currentRetryAttempt;
 
   let numNoResponseAttempts = 0;
   let streamResponseHandled = false;
@@ -103,12 +98,7 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
     retryStream.abort = resetStreams;
   }
 
-  const timeOfFirstRequest = Date.now();
-  if (currentRetryAttempt > 0) {
-    // retryAfterDelay(currentRetryAttempt);
-  } else {
-    makeRequest();
-  }
+  makeRequest();
 
   if (streamMode) {
     return retryStream;
@@ -132,8 +122,6 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
   }
 
   function makeRequest() {
-    console.log("streamingRetryRequest makeRequest")
-    currentRetryAttempt++;
 
     if (streamMode) {
       streamResponseHandled = false;
@@ -174,7 +162,6 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
   }
 
   function onResponse(err:any , response: any=null, body:any=null) {
-    console.log("streamingRetryRequest onResponse")
     // An error such as DNS resolution.
     if (err) {
       numNoResponseAttempts++;
@@ -192,22 +179,6 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
 
       return;
     }
-
-    // Send the response to see if we should try again.
-    // NOTE: "currentRetryAttempt" isn't accurate by default, as it counts
-    // the very first request sent as the first "retry". It is only accurate
-    // when a user provides their own "currentRetryAttempt" option at
-    // instantiation.
-    const adjustedCurrentRetryAttempt = manualCurrentRetryAttemptWasSet
-      ? currentRetryAttempt
-      : currentRetryAttempt - 1;
-    // if (
-    //   adjustedCurrentRetryAttempt < opts.retries &&
-    //   opts.shouldRetryFn(response)
-    // ) {
-    // //   retryAfterDelay(currentRetryAttempt);
-    //   return;
-    // }
 
     // No more attempts need to be made, just continue on.
     if (streamMode) {

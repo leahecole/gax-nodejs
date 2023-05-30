@@ -26,7 +26,7 @@ import {
 } from '../apitypes';
 import {RetryRequestOptions} from '../gax';
 import {GoogleError} from '../googleError';
-import {streamingRetryRequest} from '../streamingRetries';
+import {streamingRetryRequest} from '../streamingRetryRequest';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const duplexify: DuplexifyConstructor = require('duplexify');
@@ -173,15 +173,13 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     retryRequestOptions: RetryRequestOptions = {}
   ) {
     if (this.type === StreamType.SERVER_STREAMING) {
-      console.log(this.type)
-      console.log("HELLO")
       if (this.rest) {
         const stream = apiCall(argument, this._callback) as CancellableStream;
         this.stream = stream;
         this.setReadable(stream);
       
       } else if(this.new_retry){
-        console.log("In New retry request")
+        console.log("WARNING: You are using an experimental streamingRetryRequest")
         const retryStream = streamingRetryRequest(null, {
           objectMode: true,
           request: () => {
@@ -201,7 +199,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
           },
         },null);
         this.setReadable(retryStream);
-      }else {
+      }else{
         const retryStream = retryRequest(null, {
           objectMode: true,
           request: () => {
