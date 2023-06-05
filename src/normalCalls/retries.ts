@@ -22,12 +22,15 @@ import {
   GRPCCallOtherArgs,
   GRPCCallResult,
   RequestType,
+  ServerStreamingCall,
   SimpleCallbackFunction,
+  UnaryCall,
 } from '../apitypes';
 import {RetryOptions} from '../gax';
 import {GoogleError} from '../googleError';
 
-import {addTimeoutArg} from './timeout';
+import {addServerTimeoutArg, addTimeoutArg} from './timeout';
+import { EventEmitter, Stream } from 'stream';
 
 /**
  * Creates a function equivalent to func, but that retries on certain
@@ -46,7 +49,8 @@ export function retryable(
   func: GRPCCall,
   retry: RetryOptions,
   otherArgs: GRPCCallOtherArgs,
-  apiName?: string
+  apiName?: string,
+  isStreaming?: boolean,
 ): SimpleCallbackFunction {
   const delayMult = retry.backoffSettings.retryDelayMultiplier;
   const maxDelay = retry.backoffSettings.maxRetryDelayMillis;
@@ -100,9 +104,16 @@ export function retryable(
       }
 
       retries++;
-      const toCall = addTimeoutArg(func, timeout!, otherArgs);
+      let toCall:SimpleCallbackFunction
+
+      if(isStreaming){
+        toCall = addServerTimeoutArg(func, timeout!, otherArgs);
+      } else {
+        toCall = addTimeoutArg(func, timeout!, otherArgs);
+      }
       canceller = toCall(argument, (err, response, next, rawResponse) => {
         if (!err) {
+          console.log("Found error")
           callback(null, response, next, rawResponse);
           return;
         }
@@ -144,19 +155,15 @@ export function retryable(
       repeat();
     }
 
-    return {
-      cancel() {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        if (canceller) {
-          canceller.cancel();
-        } else {
-          const error = new GoogleError('cancelled');
-          error.code = Status.CANCELLED;
-          callback(error);
-        }
-      },
-    };
+    const options = otherArgs.options || {};
+    const metadata = otherArgs.metadataBuilder
+      ? otherArgs.metadataBuilder({}, otherArgs.headers || {})
+      : null;
+
+    if(isStreaming){
+      return (func as ServerStreamingCall)(argument, metadata!, options);;
+    }
+
+    return (func as UnaryCall)(argument, metadata!, options, callback);
   };
 }

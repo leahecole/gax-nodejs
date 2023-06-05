@@ -141,6 +141,7 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
           if (streamResponseHandled) {
             return;
           }
+          console.log("found the error")
 
           streamResponseHandled = true;
           onResponse(err);
@@ -161,13 +162,23 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
     }
   }
 
+  function retryAfterDelay() {
+    if (streamMode) {
+      resetStreams();
+    }
+
+    setTimeout(makeRequest, 100);
+  }
+
+
   function onResponse(err:any , response: any=null, body:any=null) {
     // An error such as DNS resolution.
     if (err) {
+      console.log(err)
       numNoResponseAttempts++;
 
-      if (numNoResponseAttempts <= opts.noResponseRetries) {
-        // retryAfterDelay(numNoResponseAttempts);
+      if (numNoResponseAttempts <= opts.maxRetries) {
+        retryAfterDelay()
       } else {
         if (streamMode) {
           retryStream.emit('error', err);

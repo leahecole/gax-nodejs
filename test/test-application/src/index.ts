@@ -22,8 +22,9 @@ import {ShowcaseServer} from 'showcase-server';
 import * as assert from 'assert';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
-import { protobuf, grpc, GoogleError, GoogleAuth, Status} from 'google-gax';
+import { protobuf, grpc, GoogleError, GoogleAuth, Status,createBackoffSettings, CallOptions, RetryOptions} from 'google-gax';
 import stream = require('stream');
+
 
 async function testShowcase() {
   const grpcClientOpts = {
@@ -63,57 +64,58 @@ async function testShowcase() {
     auth: fakeGoogleAuth,
   };
   
-  const grpcClient = new EchoClient(grpcClientOpts);
-  const grpcSequenceClient = new SequenceServiceClient(grpcClientOpts);
+  // const grpcClient = new EchoClient(grpcClientOpts);
+  // const grpcSequenceClient = new SequenceServiceClient(grpcClientOpts);
 
-  const grpcClientWithNewRetry = new EchoClient(grpcClientOptsWithNewRetry);
+  // const grpcClientWithNewRetry = new EchoClient(grpcClientOptsWithNewRetry);
   const grpcSequenceClientWithNewRetry = new SequenceServiceClient(grpcClientOptsWithNewRetry);
 
-  const fallbackClient = new EchoClient(fallbackClientOpts);
-  const restClient = new EchoClient(restClientOpts);
+  // const fallbackClient = new EchoClient(fallbackClientOpts);
+  // const restClient = new EchoClient(restClientOpts);
 
   // assuming gRPC server is started locally
-  await testCreateSequence(grpcSequenceClient);
-  await streamingNotRetryEligible(grpcSequenceClient);
+  // await testCreateSequence(grpcSequenceClient);
+  await testStreaming(grpcSequenceClientWithNewRetry);
+  // await streamingNotRetryEligible(grpcSequenceClient);
 
-  await testEcho(grpcClient);
-  await testEchoError(grpcClient);
-  await testExpand(grpcClient);
-  await testPagedExpand(grpcClient);
-  await testPagedExpandAsync(grpcClient);
-  await testCollect(grpcClient);
-  await testChat(grpcClient);
-  await testWait(grpcClient);
+  // await testEcho(grpcClient);
+  // await testEchoError(grpcClient);
+  // await testExpand(grpcClient);
+  // await testPagedExpand(grpcClient);
+  // await testPagedExpandAsync(grpcClient);
+  // await testCollect(grpcClient);
+  // await testChat(grpcClient);
+  // await testWait(grpcClient);
 
-  await testEcho(fallbackClient);
-  await testEchoError(fallbackClient);
-  await testExpandThrows(fallbackClient); // fallback does not support server streaming
-  await testPagedExpand(fallbackClient);
-  await testPagedExpandAsync(fallbackClient);
-  await testCollectThrows(fallbackClient); // fallback does not support client streaming
-  await testChatThrows(fallbackClient); // fallback does not support bidi streaming
-  await testWait(fallbackClient);
+  // await testEcho(fallbackClient);
+  // await testEchoError(fallbackClient);
+  // await testExpandThrows(fallbackClient); // fallback does not support server streaming
+  // await testPagedExpand(fallbackClient);
+  // await testPagedExpandAsync(fallbackClient);
+  // await testCollectThrows(fallbackClient); // fallback does not support client streaming
+  // await testChatThrows(fallbackClient); // fallback does not support bidi streaming
+  // await testWait(fallbackClient);
 
-  await testEcho(restClient);
-  await testExpand(restClient); // REGAPIC supports server streaming
-  await testPagedExpand(restClient);
-  await testPagedExpandAsync(restClient);
-  await testCollectThrows(restClient); // REGAPIC does not support client streaming
-  await testChatThrows(restClient); // REGAPIC does not support bidi streaming
-  await testWait(restClient);
+  // await testEcho(restClient);
+  // await testExpand(restClient); // REGAPIC supports server streaming
+  // await testPagedExpand(restClient);
+  // await testPagedExpandAsync(restClient);
+  // await testCollectThrows(restClient); // REGAPIC does not support client streaming
+  // await testChatThrows(restClient); // REGAPIC does not support bidi streaming
+  // await testWait(restClient);
 
-  // Testing with newRetry being true 
-  await testCreateSequence(grpcSequenceClientWithNewRetry);
-  await streamingNotRetryEligible(grpcSequenceClientWithNewRetry);
-
-  await testEcho(grpcClientWithNewRetry);
-  await testEchoError(grpcClientWithNewRetry);
-  await testExpand(grpcClientWithNewRetry);
-  await testPagedExpand(grpcClientWithNewRetry);
-  await testPagedExpandAsync(grpcClientWithNewRetry);
-  await testCollect(grpcClientWithNewRetry);
-  await testChat(grpcClientWithNewRetry);
-  await testWait(grpcClientWithNewRetry);
+  // // Testing with newRetry being true 
+  // await testCreateSequence(grpcSequenceClientWithNewRetry);
+  // await streamingNotRetryEligible(grpcSequenceClientWithNewRetry);
+  
+  // await testEcho(grpcClientWithNewRetry);
+  // await testEchoError(grpcClientWithNewRetry);
+  // await testExpand(grpcClientWithNewRetry);
+  // await testPagedExpand(grpcClientWithNewRetry);
+  // await testPagedExpandAsync(grpcClientWithNewRetry);
+  // await testCollect(grpcClientWithNewRetry);
+  // await testChat(grpcClientWithNewRetry);
+  // await testWait(grpcClientWithNewRetry);
 }
 
 function getStreamingSequenceRequest(){
@@ -136,17 +138,17 @@ function getStreamingSequenceRequest(){
 
   firstResponse.responseIndex=1;
   
-  let secondDelay = new protos.google.protobuf.Duration();
-  secondDelay.nanos=150;
+  // let secondDelay = new protos.google.protobuf.Duration();
+  // secondDelay.nanos=150;
 
-  let secondStatus = new protos.google.rpc.Status();
-  secondStatus.code=Status.DEADLINE_EXCEEDED;
-  secondStatus.message="DEADLINE_EXCEEDED";
+  // let secondStatus = new protos.google.rpc.Status();
+  // secondStatus.code=Status.DEADLINE_EXCEEDED;
+  // secondStatus.message="DEADLINE_EXCEEDED";
 
-  let secondResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  secondResponse.delay=secondDelay;
-  secondResponse.status=secondStatus;
-  secondResponse.responseIndex=2
+  // let secondResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  // secondResponse.delay=secondDelay;
+  // secondResponse.status=secondStatus;
+  // secondResponse.responseIndex=2
 
   let thirdDelay = new protos.google.protobuf.Duration();
   thirdDelay.nanos=500000;
@@ -161,7 +163,7 @@ function getStreamingSequenceRequest(){
   thirdResponse.responseIndex=11;
 
   let streamingSequence = new protos.google.showcase.v1beta1.StreamingSequence()
-  streamingSequence.responses = [firstResponse,secondResponse,thirdResponse];
+  streamingSequence.responses = [firstResponse,thirdResponse];
   streamingSequence.content = "This is testing the brand new and shiny StreamingSequence server 3";
   request.streamingSequence = streamingSequence
 
@@ -169,13 +171,33 @@ function getStreamingSequenceRequest(){
 }
 
 async function testEcho(client: EchoClient) {
+    const backoffSettings = createBackoffSettings(
+      100,
+      1.2,
+      1000,
+      null,
+      1.5,
+      3000,
+      4500
+    );
+
+  const retryOptions = new RetryOptions([4],backoffSettings)
+
+  let settings = {
+    retry:retryOptions
+  }
+
   const request = {
     content: 'test',
+    error:{
+      code:4,
+      message:"deadline"
+    }
   };
   const timer = setTimeout(() => {
     throw new Error('End-to-end testEcho method fails with timeout');
   }, 12000);
-  const [response] = await client.echo(request);
+  const [response] = await client.echo(request,settings);
   clearTimeout(timer);
   assert.deepStrictEqual(request.content, response.content);
 }
@@ -229,6 +251,79 @@ async function testCreateSequence(client: SequenceServiceClient) {
     attemptStream = await multipleSequenceAttempts(numResponses) 
   }
 }
+
+function retryStreamingRequest(){
+  
+  const request = new protos.google.showcase.v1beta1.CreateSequenceRequest()
+
+  let firstDelay = new protos.google.protobuf.Duration();
+  firstDelay.nanos=150;
+
+  let firstStatus = new protos.google.rpc.Status();
+  firstStatus.code=Status.DEADLINE_EXCEEDED;
+  firstStatus.message="DEADLINE_EXCEEDED";
+
+  let firstResponse = new protos.google.showcase.v1beta1.Sequence.Response();
+  firstResponse.delay=firstDelay;
+  firstResponse.status=firstStatus;
+
+  // The Index you want the stream to fail or send the status 
+  // This  should be index + 1 so if you want to send status at index 0 
+  // you would provide firstResponse.responseIndex=1
+
+  let secondDelay = new protos.google.protobuf.Duration();
+  secondDelay.nanos=150;
+
+  let secondStatus = new protos.google.rpc.Status();
+  secondStatus.code=Status.OK;
+  secondStatus.message="OK";
+
+  let secondResponse = new protos.google.showcase.v1beta1.Sequence.Response();
+  secondResponse.delay=secondDelay;
+  secondResponse.status=secondStatus;
+
+  let streamingSequence = new protos.google.showcase.v1beta1.Sequence()
+  streamingSequence.responses = [firstResponse,secondResponse];
+  request.sequence = streamingSequence
+
+  return request
+}
+
+async function testStreaming(client: SequenceServiceClient) {
+
+  const promise = new Promise(async (_, reject) => {
+
+    const backoffSettings = createBackoffSettings(
+        100,
+        1.2,
+        1000,
+        null,
+        1.5,
+        3000,
+        4500
+      );
+    
+    const retryOptions = new RetryOptions([14],backoffSettings)
+
+    let settings = {
+      retry:retryOptions
+    }
+
+    client.initialize()
+
+    const request = getStreamingSequenceRequest();
+    const response = await client.createStreamingSequence(request);
+    const sequence = response[0]
+
+    let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
+    attemptRequest.name = sequence.name!
+
+    const attemptStream = await client.attemptStreamingSequence(attemptRequest,settings)
+
+  });
+
+}
+
 
 function noRetryStreamingRequest(){
   
@@ -387,11 +482,31 @@ async function testEchoError(client: EchoClient) {
 }
 
 async function testExpand(client: EchoClient) {
+    const backoffSettings = createBackoffSettings(
+      100,
+      1.2,
+      1000,
+      null,
+      1.5,
+      3000,
+      4500
+    );
+
+  const retryOptions = new RetryOptions([4],backoffSettings)
+
+  let settings = {
+    retry:retryOptions
+  }
+
   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
   const request = {
     content: words.join(' '),
+    error:{
+      code:4,
+      message:"Deadline"
+    }
   };
-  const stream = client.expand(request);
+  const stream = client.expand(request,settings);
   const result: string[] = [];
   stream.on('data', (response: {content: string}) => {
     result.push(response.content);

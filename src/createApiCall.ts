@@ -30,7 +30,7 @@ import {
 import {Descriptor} from './descriptor';
 import {CallOptions, CallSettings} from './gax';
 import {retryable} from './normalCalls/retries';
-import {addTimeoutArg} from './normalCalls/timeout';
+import {addServerTimeoutArg, addTimeoutArg} from './normalCalls/timeout';
 import {StreamingApiCaller} from './streamingCalls/streamingApiCaller';
 
 /**
@@ -103,7 +103,22 @@ export function createApiCall(
             func,
             thisSettings.retry!,
             thisSettings.otherArgs as GRPCCallOtherArgs,
-            thisSettings.apiName
+            thisSettings.apiName,
+            streaming,
+            
+          );
+        }
+        if(streaming){
+          retry!.backoffSettings.initialRpcTimeoutMillis =
+          retry!.backoffSettings.initialRpcTimeoutMillis ||
+          thisSettings.timeout;
+          return retryable(
+            func,
+            thisSettings.retry!,
+            thisSettings.otherArgs as GRPCCallOtherArgs,
+            thisSettings.apiName,
+            streaming,
+            
           );
         }
         return addTimeoutArg(
