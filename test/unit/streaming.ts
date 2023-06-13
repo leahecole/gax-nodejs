@@ -39,14 +39,15 @@ function createApiCallStreaming(
     | Promise<GRPCCall>
     | sinon.SinonSpy<Array<{}>, internal.Transform | StreamArrayParser>,
   type: streaming.StreamType,
-  rest?: boolean
+  rest?: boolean,
+  gaxStreamingRetries?: boolean
 ) {
   const settings = new gax.CallSettings();
   return createApiCall(
     //@ts-ignore
     Promise.resolve(func),
     settings,
-    new StreamDescriptor(type, rest)
+    new StreamDescriptor(type, rest, gaxStreamingRetries)
   ) as GaxCallStream;
 }
 
@@ -159,7 +160,7 @@ describe('streaming', () => {
     s.end();
   });
 
-  it('allows custome CallOptions.retry settings', done => {
+  it('allows custom CallOptions.retry settings', done => {
     sinon
       .stub(streaming.StreamProxy.prototype, 'forwardEvents')
       .callsFake((stream, retry): any => {
@@ -179,6 +180,57 @@ describe('streaming', () => {
       streaming.StreamType.SERVER_STREAMING
     );
 
+    apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([1], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          totalTimeoutMillis: 4500,
+        }),
+      }
+    );
+  });
+  //TODO: coleleah
+  //TODO: make a test that ensures only one of RetryRequest or retryOptions are set
+  it('converts RetryRequestOptions to retryOptions when newRetry behavior is enabled', done => {
+    sinon
+      .stub(streaming.StreamProxy.prototype, 'forwardEvents')
+      .callsFake(stream => {
+        assert(stream instanceof internal.Stream);
+        done();
+      });
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      false, 
+      true // ensure we're doing the new retries
+    );
+    // TODO: figure out how to pass this into a call
+    const retryRequestOptions = {
+      objectMode: false,
+      retries: 1,
+      maxRetryDelay: 70,
+      retryDelayMultiplier: 3,
+      totalTimeout: 650,
+      noResponseRetries: 3,
+      currentRetryAttempt: 0,
+      shouldRetryFn: function alwaysRetry() {
+        return true;
+      },
+    };
+    // TODO: construct call differently
     apiCall(
       {},
       {
