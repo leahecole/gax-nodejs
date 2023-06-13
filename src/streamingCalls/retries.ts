@@ -27,7 +27,8 @@ import {
 import {RetryOptions} from '../gax';
 import {GoogleError} from '../googleError';
 
-import {addTimeoutArg} from './timeout';
+import {addTimeoutArg} from '../normalCalls/timeout';
+import { Transform } from 'stream';
 
 /**
  * Creates a function equivalent to func, but that retries on certain
@@ -42,7 +43,7 @@ import {addTimeoutArg} from './timeout';
  * @param {GRPCCallOtherArgs} otherArgs - the additional arguments to be passed to func.
  * @return {SimpleCallbackFunction} A function that will retry.
  */
-export function retryable(
+export function streamRetryable(
   func: GRPCCall,
   retry: RetryOptions,
   otherArgs: GRPCCallOtherArgs,
@@ -145,10 +146,8 @@ export function retryable(
     }
 
 
-
     return {
       cancel() {
-        console.log("In cancel")
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
@@ -160,6 +159,7 @@ export function retryable(
           callback(error);
         }
       },
+
     };
   };
 }

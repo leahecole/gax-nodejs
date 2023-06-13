@@ -76,7 +76,7 @@ async function testShowcase() {
   // assuming gRPC server is started locally
   // await testCreateSequence(grpcSequenceClient);
   await testStreaming(grpcSequenceClientWithNewRetry);
-  // await streamingNotRetryEligible(grpcSequenceClient);
+  // // await streamingNotRetryEligible(grpcSequenceClient);
 
   // await testEcho(grpcClient);
   // await testEchoError(grpcClient);
@@ -178,13 +178,13 @@ async function testEcho(client: EchoClient) {
       null,
       1.5,
       3000,
-      4500
+      45000
     );
 
   const retryOptions = new RetryOptions([4],backoffSettings)
 
   let settings = {
-    retry:retryOptions
+    retry:retryOptions,
   }
 
   const request = {
@@ -319,6 +319,10 @@ async function testStreaming(client: SequenceServiceClient) {
     attemptRequest.name = sequence.name!
 
     const attemptStream = await client.attemptStreamingSequence(attemptRequest,settings)
+    attemptStream.on('data', (response: {content: string}) => {
+      console.log("here")
+      console.log("content: " + response.content);
+    });
 
   });
 
@@ -495,16 +499,16 @@ async function testExpand(client: EchoClient) {
   const retryOptions = new RetryOptions([4],backoffSettings)
 
   let settings = {
-    retry:retryOptions
+    retry:retryOptions,
+    error:{
+      code:4,
+      message:"deadline"
+    }
   }
 
   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
   const request = {
     content: words.join(' '),
-    error:{
-      code:4,
-      message:"Deadline"
-    }
   };
   const stream = client.expand(request,settings);
   const result: string[] = [];

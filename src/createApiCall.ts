@@ -30,7 +30,7 @@ import {
 import {Descriptor} from './descriptor';
 import {CallOptions, CallSettings} from './gax';
 import {retryable} from './normalCalls/retries';
-import {addServerTimeoutArg, addTimeoutArg} from './normalCalls/timeout';
+import {addTimeoutArg} from './normalCalls/timeout';
 import {StreamingApiCaller} from './streamingCalls/streamingApiCaller';
 
 /**
@@ -77,9 +77,9 @@ export function createApiCall(
     let currentApiCaller = apiCaller;
     // special case: if bundling is disabled for this one call,
     // use default API caller instead
-    // if (settings.isBundling && !thisSettings.isBundling) {
-    //   currentApiCaller = createAPICaller(settings, undefined);
-    // }
+    if (settings.isBundling && !thisSettings.isBundling) {
+      currentApiCaller = createAPICaller(settings, undefined);
+    }
 
     const ongoingCall = currentApiCaller.init(callback);
     funcPromise
@@ -103,22 +103,7 @@ export function createApiCall(
             func,
             thisSettings.retry!,
             thisSettings.otherArgs as GRPCCallOtherArgs,
-            thisSettings.apiName,
-            streaming,
-            
-          );
-        }
-        if(streaming){
-          retry!.backoffSettings.initialRpcTimeoutMillis =
-          retry!.backoffSettings.initialRpcTimeoutMillis ||
-          thisSettings.timeout;
-          return retryable(
-            func,
-            thisSettings.retry!,
-            thisSettings.otherArgs as GRPCCallOtherArgs,
-            thisSettings.apiName,
-            streaming,
-            
+            thisSettings.apiName
           );
         }
         return addTimeoutArg(
@@ -130,6 +115,8 @@ export function createApiCall(
       .then((apiCall: SimpleCallbackFunction) => {
         // After adding retries / timeouts, the call function becomes simpler:
         // it only accepts request and callback.
+        console.log("in then of createAPICall")
+        console.log(ongoingCall)
         currentApiCaller.call(apiCall, request, thisSettings, ongoingCall);
       })
       .catch(err => {
