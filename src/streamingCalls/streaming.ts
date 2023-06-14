@@ -122,7 +122,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   retry(stream: CancellableStream){
-    stream.cancel()
+    stream.destroy()
     console.log("In retry")
     const new_stream = this.apiCall!(
       this.argument!,
@@ -137,7 +137,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    * Forward events from an API request stream to the user's stream.
    * @param {Stream} stream - The API request stream.
    */
-  forwardEvents(stream: CancellableStream) : CancellableStream | void {
+  forwardEvents(stream: CancellableStream) : CancellableStream | undefined {
+    let retryStream = undefined
     const eventsToForward = ['metadata', 'response', 'status'];
     eventsToForward.forEach(event => {
   
@@ -175,8 +176,29 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       this._responseHasSent = true;
     });
     stream.on('error', error => {
-      return this.retry(stream)
+      console.log("in error")
+      retryStream = this.retry(stream)
+      
+      console.log("this stream canceled",stream.closed)
+      this.stream = retryStream
+
+      console.log("end or error")
     });
+    return retryStream
+  }
+
+  resetStreams(requestStream: CancellableStream) {
+    let delayStream = null;
+
+    if (requestStream) {
+      requestStream.cancel && requestStream.cancel();
+
+      if (requestStream.destroy) {
+        requestStream.destroy();
+      } else if (requestStream.end) {
+        requestStream.end();
+      }
+    }
   }
 
   /**
@@ -217,12 +239,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
               this._callback
             ) as CancellableStream;
             this.stream = stream;
-            let new_stream = this.forwardEvents(stream)
-            console.log(stream.closed)
-            if(new_stream != undefined){
-              stream = new_stream
-              console.log("In if")
-            }
+            this.forwardEvents(stream)
             return stream;
           },
         },null);

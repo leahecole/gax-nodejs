@@ -320,10 +320,17 @@ async function testStreaming(client: SequenceServiceClient) {
 
     const attemptStream = await client.attemptStreamingSequence(attemptRequest,settings)
     attemptStream.on('data', (response: {content: string}) => {
-      console.log("here")
       console.log("content: " + response.content);
     });
-
+    console.log(attemptStream.closed)
+    //streamingsequences/4
+    const sequnceReport = sequence.name! + "/streamingSequenceReport"
+    
+    const reportRequest = new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest()
+    reportRequest.name = sequnceReport
+  
+    const report = await client.getStreamingSequenceReport(reportRequest);
+    console.log("report:", report[0].attempts)
   });
 
 }

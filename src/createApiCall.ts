@@ -116,7 +116,6 @@ export function createApiCall(
         // After adding retries / timeouts, the call function becomes simpler:
         // it only accepts request and callback.
         console.log("in then of createAPICall")
-        console.log(ongoingCall)
         currentApiCaller.call(apiCall, request, thisSettings, ongoingCall);
       })
       .catch(err => {
