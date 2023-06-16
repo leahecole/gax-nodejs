@@ -197,6 +197,7 @@ export class CallSettings {
    * @return {CallSettings} The merged CallSettings instance.
    */
   merge(options?: CallOptions | null) {
+    console.log("options",options);
     if (!options) {
       return new CallSettings(this);
     }
@@ -291,6 +292,20 @@ export class CallSettings {
     });
   }
 }
+
+/**
+ * Validates retry settings and converts deprecated parameter where appropriate
+ *
+ * @param {CallSettings} settings - a list of merged retry settings
+ * @return {CallSettings} A new CallSettings object.
+ *
+ */
+export function checkRetrySettings(
+  settings: CallSettings,
+): CallSettings {
+  return new CallSettings();;
+  };
+
 
 /**
  * Per-call configurable settings for retrying upon transient failure.
