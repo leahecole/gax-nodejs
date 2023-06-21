@@ -197,7 +197,6 @@ export class CallSettings {
    * @return {CallSettings} The merged CallSettings instance.
    */
   merge(options?: CallOptions | null) {
-    console.log("options",options);
     if (!options) {
       return new CallSettings(this);
     }
@@ -210,6 +209,7 @@ export class CallSettings {
     let longrunning = this.longrunning;
     let apiName = this.apiName;
     let retryRequestOptions = this.retryRequestOptions;
+    
     // If a method-specific timeout is set in the service config, and the retry codes for that
     // method are non-null, then that timeout value will be used to
     // override backoff settings.
@@ -274,6 +274,7 @@ export class CallSettings {
     if ('apiName' in options) {
       apiName = options.apiName;
     }
+    // TODO: coleleah Throw a deprecation warning here
     if ('retryRequestOptions' in options) {
       retryRequestOptions = options.retryRequestOptions;
     }
@@ -303,7 +304,15 @@ export class CallSettings {
 export function checkRetrySettings(
   settings: CallSettings,
 ): CallSettings {
-  return new CallSettings();;
+  console.log("Checking retry settings");
+  // if a user provided retry AND retryRequestOptions at call time, throw an error
+  if (settings.retry !== undefined && settings.retryRequestOptions !== undefined){
+    //TODO: link to documentation when it exists
+    throw new Error(`Only one of retry or retryRequestOptions may be set`); 
+  }
+  // If both are passed at call time, this is a no
+
+  return settings;
   };
 
 

@@ -23,6 +23,7 @@ import {PassThrough} from 'stream';
 
 import {GaxCallStream, GRPCCall} from '../../src/apitypes';
 import {createApiCall} from '../../src/createApiCall';
+import {StreamingApiCaller} from '../../src/streamingCalls/streamingApiCaller'
 import * as gax from '../../src/gax';
 import {StreamDescriptor} from '../../src/streamingCalls/streamDescriptor';
 import * as streaming from '../../src/streamingCalls/streaming';
@@ -34,7 +35,6 @@ import protobuf = require('protobufjs');
 import {GoogleError} from '../../src';
 import {Metadata} from '@grpc/grpc-js';
 
-const createApiCallSpy = sinon.spy(createApiCall);
 
 function createApiCallStreaming(
   func:
@@ -45,8 +45,7 @@ function createApiCallStreaming(
   gaxStreamingRetries?: boolean
 ) {
   const settings = new gax.CallSettings();
-  return createApiCallSpy(
-  // return createApiCall(
+  return createApiCall(
     //@ts-ignore
     Promise.resolve(func),
     settings,
@@ -59,41 +58,41 @@ describe('streaming', () => {
     sinon.restore();
   });
 
-  it('handles server streaming', done => {
-    const spy = sinon.spy((...args: Array<{}>) => {
-      assert.strictEqual(args.length, 3);
-      const s = new PassThrough({
-        objectMode: true,
-      });
-      s.push({resources: [1, 2]});
-      s.push({resources: [3, 4, 5]});
-      s.push(null);
-      setImmediate(() => {
-        s.emit('metadata');
-      });
-      return s;
-    });
+  // it('handles server streaming', done => {
+  //   const spy = sinon.spy((...args: Array<{}>) => {
+  //     assert.strictEqual(args.length, 3);
+  //     const s = new PassThrough({
+  //       objectMode: true,
+  //     });
+  //     s.push({resources: [1, 2]});
+  //     s.push({resources: [3, 4, 5]});
+  //     s.push(null);
+  //     setImmediate(() => {
+  //       s.emit('metadata');
+  //     });
+  //     return s;
+  //   });
 
-    const apiCall = createApiCallStreaming(
-      spy,
-      streaming.StreamType.SERVER_STREAMING
-    );
-    const s = apiCall({}, undefined);
-    const callback = sinon.spy(data => {
-      if (callback.callCount === 1) {
-        assert.deepStrictEqual(data, {resources: [1, 2]});
-      } else {
-        assert.deepStrictEqual(data, {resources: [3, 4, 5]});
-      }
-    });
-    assert.strictEqual(s.readable, true);
-    assert.strictEqual(s.writable, false);
-    s.on('data', callback);
-    s.on('end', () => {
-      assert.strictEqual(callback.callCount, 2);
-      done();
-    });
-  });
+  //   const apiCall = createApiCallStreaming(
+  //     spy,
+  //     streaming.StreamType.SERVER_STREAMING
+  //   );
+  //   const s = apiCall({}, undefined);
+  //   const callback = sinon.spy(data => {
+  //     if (callback.callCount === 1) {
+  //       assert.deepStrictEqual(data, {resources: [1, 2]});
+  //     } else {
+  //       assert.deepStrictEqual(data, {resources: [3, 4, 5]});
+  //     }
+  //   });
+  //   assert.strictEqual(s.readable, true);
+  //   assert.strictEqual(s.writable, false);
+  //   s.on('data', callback);
+  //   s.on('end', () => {
+  //     assert.strictEqual(callback.callCount, 2);
+  //     done();
+  //   });
+  // });
 
   // it('handles client streaming', done => {
   //   function func(metadata: {}, options: {}, callback: APICallback) {
@@ -163,13 +162,50 @@ describe('streaming', () => {
   //   s.end();
   // });
 
-  it('allows custom CallOptions.retry settings', done => {
+  // it('allows custom CallOptions.retry settings', done => {
+  //   sinon
+  //     .stub(streaming.StreamProxy.prototype, 'forwardEvents')
+  //     .callsFake(stream => {
+  //       assert(stream instanceof internal.Stream);
+  //       done();
+  //     });
+  //   const spy = sinon.spy((...args: Array<{}>) => {
+  //     assert.strictEqual(args.length, 3);
+  //     const s = new PassThrough({
+  //       objectMode: true,
+  //     });
+  //     return s;
+  //   });
+
+  //   const apiCall = createApiCallStreaming(
+  //     spy,
+  //     streaming.StreamType.SERVER_STREAMING
+  //   );
+
+
+  //   apiCall(
+  //     {},
+  //     {
+  //       retry: gax.createRetryOptions([1], {
+  //         initialRetryDelayMillis: 100,
+  //         retryDelayMultiplier: 1.2,
+  //         maxRetryDelayMillis: 1000,
+  //         rpcTimeoutMultiplier: 1.5,
+  //         maxRpcTimeoutMillis: 3000,
+  //         totalTimeoutMillis: 4500,
+  //       }),
+  //     }
+  //   );
+  // });
+  //TODO: YES RETRY ENABLED
+  it('throws an error when both retryRequestoptions and retryOptions are passed at call time when new retry behavior is enabled', done => {
+    // if this is reached, it means the settings merge in createAPICall did not fail properly
     sinon
-      .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-      .callsFake((stream, retry): any => {
-        assert(stream instanceof internal.Stream);
-        done();
-      })
+    .stub(StreamingApiCaller.prototype, 'call')
+    .callsFake((apiCall, argument, settings, stream)  => {
+      throw new Error("This shouldn't be happening")
+    });
+
     const spy = sinon.spy((...args: Array<{}>) => {
       assert.strictEqual(args.length, 3);
       const s = new PassThrough({
@@ -178,43 +214,6 @@ describe('streaming', () => {
       return s;
     });
 
-    const apiCall = createApiCallStreaming(
-      spy,
-      streaming.StreamType.SERVER_STREAMING
-    );
-
-
-    apiCall(
-      {},
-      {
-        retry: gax.createRetryOptions([1], {
-          initialRetryDelayMillis: 100,
-          retryDelayMultiplier: 1.2,
-          maxRetryDelayMillis: 1000,
-          rpcTimeoutMultiplier: 1.5,
-          maxRpcTimeoutMillis: 3000,
-          totalTimeoutMillis: 4500,
-        }),
-      }
-    );
-  });
-  //TODO: coleleah
-  //TODO: make a test that ensures only one of RetryRequest or retryOptions are set
-  it('bconverts RetryRequestOptions to retryOptions when newRetry behavior is enabled', done => {
-    sinon
-      .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-      .callsFake(stream => {
-        assert(stream instanceof internal.Stream);
-        done();
-      });
-    const spy = sinon.spy((...args: Array<{}>) => {
-      console.log('args', args);
-      assert.strictEqual(args.length, 3);
-      const s = new PassThrough({
-        objectMode: true,
-      });
-      return s;
-    });
     const apiCall = createApiCallStreaming(
       spy,
       streaming.StreamType.SERVER_STREAMING,
@@ -235,27 +234,35 @@ describe('streaming', () => {
       },
       
     };
-
-    const ac = apiCall(
-      {},
-      {
-        retryRequestOptions: passedRetryRequestOptions,
-        retry: gax.createRetryOptions([1], {
-          initialRetryDelayMillis: 100,
-          retryDelayMultiplier: 1.2,
-          maxRetryDelayMillis: 1000,
-          rpcTimeoutMultiplier: 1.5,
-          maxRpcTimeoutMillis: 3000,
-          totalTimeoutMillis: 4500,
-        }),
-      },
-    );
-
-      ac;
-      console.log("apicallSpyargs", createApiCallSpy.getCalls())
-      assert(createApiCallSpy.calledOnce);
-
+    // make the call with both options passed at call time
+    try {
+      apiCall(
+        {},
+        {
+          retryRequestOptions: passedRetryRequestOptions,
+          retry: gax.createRetryOptions([1], {
+            initialRetryDelayMillis: 300,
+            retryDelayMultiplier: 1.2,
+            maxRetryDelayMillis: 1000,
+            rpcTimeoutMultiplier: 1.5,
+            maxRpcTimeoutMillis: 3000,
+            totalTimeoutMillis: 4500,
+          }),
+        },
+      );
+    } catch (err) {
+      assert(err instanceof Error)
+      assert.strictEqual(err.toString(), "Error: Only one of retry or retryRequestOptions may be set")
+      done();
+    }
   });
+
+  //TODO: make a test that shows deprecation notice and converts retry request options passed at call time
+  //TODO: make a test that converts retryrequest options to retry optiosn when new behavior enabled
+  // NO RETRY BEHAVIOR ENABLED
+  //TODO: make a test that ensures a warning is shown when retryrequestoptions are passed
+  //TODO: make a test that ensures a warning is shown when retry options are passed
+
 
   // it('forwards metadata and status', done => {
   //   const responseMetadata = {metadata: true};

@@ -63,7 +63,6 @@ export function createApiCall(
   // function. Currently client librares are only calling this method with a
   // promise, but it will change.
   const funcPromise = typeof func === 'function' ? Promise.resolve(func) : func;
-  console.log("descriptor", descriptor);
   // the following apiCaller will be used for all calls of this function...
   const apiCaller = createAPICaller(settings, descriptor);
 
@@ -72,10 +71,8 @@ export function createApiCall(
     callOptions?: CallOptions,
     callback?: APICallback
   ) => {
-    //console.log("callOptions", callOptions);
     const thisSettingsTemp = settings.merge(callOptions); //TODO: come up with a better name
     let thisSettings = thisSettingsTemp;
-    //console.log("thisSettingsTemp", thisSettingsTemp);
     
     let currentApiCaller = apiCaller;
     const gaxStreamingRetries = (currentApiCaller as StreamingApiCaller).descriptor
