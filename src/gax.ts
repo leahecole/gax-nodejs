@@ -303,12 +303,36 @@ export class CallSettings {
  */
 export function checkRetrySettings(
   settings: CallSettings,
+  gaxStreamingRetries?: boolean
 ): CallSettings {
   console.log("Checking retry settings");
   // if a user provided retry AND retryRequestOptions at call time, throw an error
-  if (settings.retry !== undefined && settings.retryRequestOptions !== undefined){
-    //TODO: link to documentation when it exists
-    throw new Error(`Only one of retry or retryRequestOptions may be set`); 
+  //TODO: coleleah - this is an issue - it is the merged retry settings not the calloptions
+  if (gaxStreamingRetries){
+    if (settings.retry !== undefined && settings.retryRequestOptions !== undefined){
+      //TODO: link to documentation when it exists
+      throw new Error(`Only one of retry or retryRequestOptions may be set`); 
+    }
+  }else{
+    // if user is opted into legacy settings but has passed retry settings, let them know there might be an issue
+    if (settings.retry !== undefined) {  
+      console.log("retry is defined");  
+      warn(
+      'legacy_streaming_retry_behavior', // TODO(coleleah): figure out warning code
+      `Legacy streaming retry behavior will not honor settings passed at call time or via client configuration. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will be set to true by default in future releases.`,
+      'DeprecationWarning'
+    );
+    console.log("after warn");
+    }
+    if (settings.retryRequestOptions !== undefined) {    
+      console.log('retryrequest');
+      warn(
+      'legacy_streaming_retry_request_behavior', // TODO(coleleah): figure out warning code
+      `Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.`,
+      'DeprecationWarning'
+    );
+    console.log("after warn 2");
+    }
   }
   // If both are passed at call time, this is a no
 

@@ -79,9 +79,9 @@ export function createApiCall(
     ?.gaxStreamingRetries;
 
     // If Gax streaming retries are enabled, check settings
-    if (gaxStreamingRetries){
-      thisSettings = checkRetrySettings(thisSettingsTemp);
-    }
+    //TODO(coleleah): switch this to callOptions
+    thisSettings = checkRetrySettings(thisSettingsTemp, gaxStreamingRetries);
+    
     // special case: if bundling is disabled for this one call,
     // use default API caller instead
     if (settings.isBundling && !thisSettings.isBundling) {
