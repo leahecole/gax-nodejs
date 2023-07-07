@@ -193,7 +193,7 @@ function getStreamingSequenceRequest(){
   fourthResponse.responseIndex=11;
 
   let streamingSequence = new protos.google.showcase.v1beta1.StreamingSequence()
-  streamingSequence.responses = [firstResponse,secondResponse, thirdResponse, fourthResponse];
+  streamingSequence.responses = [firstResponse, fourthResponse];
   streamingSequence.content = "This is testing the brand new and shiny StreamingSequence server 3";
   request.streamingSequence = streamingSequence
 
@@ -331,7 +331,7 @@ async function testStreaming(client: SequenceServiceClient) {
       4500
     );
   
-  const retryOptions = new RetryOptions([14,4],backoffSettings)
+  const retryOptions = new RetryOptions([14],backoffSettings)
 
   let settings = {
     retry:retryOptions
