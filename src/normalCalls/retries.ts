@@ -148,7 +148,6 @@ export function retryable(
 
     return {
       cancel() {
-        console.log("In cancel")
         if (timeoutId) {
           clearTimeout(timeoutId);
         }

@@ -86,11 +86,10 @@ export class StreamingApiCaller implements APICaller {
     settings: CallSettings,
     stream: StreamProxy
   ) {
-    stream.setStream(apiCall, argument, settings.retryRequestOptions);
+    stream.setStream(apiCall, argument, settings.retryRequestOptions, settings.retry!);
   }
 
   fail(stream: CancellableStream, err: Error) {
-    console.log("In Fail")
     stream.emit('error', err);
   }
 
