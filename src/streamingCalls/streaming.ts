@@ -96,6 +96,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   prevError?: Error;
   prevDeadline?: number;
   retries?: number = 0;
+  inRetryLoop?: boolean = false;
   /**
    * StreamProxy is a proxy to gRPC-streaming method.
    *
@@ -128,7 +129,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   retry(stream: CancellableStream, retry: RetryOptions) {
-    stream.destroy()
     const new_stream = this.apiCall!(
       this.argument!,
       this._callback
@@ -160,6 +160,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     let timeout = retry.backoffSettings.initialRpcTimeoutMillis;
     let now = new Date();
     let deadline: number = 0;
+    let seenError: boolean = false;
 
     if (retry.backoffSettings.totalTimeoutMillis) {
       deadline = now.getTime() + retry.backoffSettings.totalTimeoutMillis;
@@ -172,7 +173,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       );
       error.code = Status.DEADLINE_EXCEEDED;
       this.emit("error",error)
-      this.destroy(error)
       // Without throwing error you get unhandled error since we are returning a new stream
       // There might be a better way to do this
       throw error
@@ -185,19 +185,18 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       );
       error.code = Status.DEADLINE_EXCEEDED;
       this.emit("error",error)
-      this.destroy(error)
       throw error
     }
 
     this.retries!++;
-    const eventsToForward = ['metadata', 'response', 'status', "data"];
+    const eventsToForward = ['data'];
     eventsToForward.forEach(event => {
       stream.on(event, this.emit.bind(this, event));
     });
     
     stream.on('error', error => {
+      seenError = true;
       let e = GoogleError.parseGRPCStatusDetails(error);
-      console.log(retry.retryCodes)
       if (retry.retryCodes.indexOf(e!.code!) < 0) {
         const newError = new GoogleError(
           'Exception occurred in retry method that was ' +
@@ -205,8 +204,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         );
         newError.code = Status.INVALID_ARGUMENT;
         this.emit('error', newError);
-        this.destroy(error)
-        throw error
+        throw newError
       } else {
           const toSleep = Math.random() * delay;
           setTimeout(() => {
@@ -228,7 +226,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         );
         error.code = Status.INVALID_ARGUMENT;
         this.emit("error",error)
-        this.destroy(error)
         throw error
       } else {
         retryStream = this.retry(stream,retry)
@@ -236,6 +233,11 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         return
       }
     });
+    stream.on('end', () => {
+      if(this.inRetryLoop && seenError === false){
+        this.emit("end")
+      }
+    })
     return retryStream
   }
 
@@ -292,9 +294,9 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         );
         newError.code = Status.INVALID_ARGUMENT;
         this.emit('error', newError);
-        this.destroy(error)
         throw error
       } else {
+        this.inRetryLoop = true
         retryStream = this.retry(stream,retry)
         this.stream = retryStream
         this.prevError = error
@@ -302,6 +304,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       }
       GoogleError.parseGRPCStatusDetails(error);
     });
+
     return retryStream
   }
 
