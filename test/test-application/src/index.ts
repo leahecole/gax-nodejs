@@ -22,7 +22,7 @@ import {ShowcaseServer} from 'showcase-server';
 import * as assert from 'assert';
 import { promises as fsp } from 'fs';
 import * as path from 'path';
-import { protobuf, grpc, GoogleError, GoogleAuth, Status,createBackoffSettings, CallOptions, RetryOptions} from 'google-gax';
+import { protobuf, grpc, GoogleError, GoogleAuth, Status,createBackoffSettings, CallOptions, RetryOptions, createDefaultBackoffSettings} from 'google-gax';
 import stream = require('stream');
 
 
@@ -139,7 +139,7 @@ function getStreamingSequenceRequest(){
   const request = new protos.google.showcase.v1beta1.CreateStreamingSequenceRequest()
 
   let firstDelay = new protos.google.protobuf.Duration();
-  firstDelay.nanos=150;
+  firstDelay.seconds=1;
 
   let firstStatus = new protos.google.rpc.Status();
   firstStatus.code=Status.UNAVAILABLE;
@@ -156,7 +156,7 @@ function getStreamingSequenceRequest(){
   firstResponse.responseIndex=1;
   
   let secondDelay = new protos.google.protobuf.Duration();
-  secondDelay.nanos=150;
+  secondDelay.seconds=1;
 
   let secondStatus = new protos.google.rpc.Status();
   secondStatus.code=Status.DEADLINE_EXCEEDED;
@@ -169,7 +169,7 @@ function getStreamingSequenceRequest(){
 
 
   let thirdDelay = new protos.google.protobuf.Duration();
-  thirdDelay.nanos=150;
+  thirdDelay.seconds=1;
 
   let thirdStatus = new protos.google.rpc.Status();
   thirdStatus.code=Status.DEADLINE_EXCEEDED;
@@ -181,7 +181,7 @@ function getStreamingSequenceRequest(){
   thirdResponse.responseIndex=3
 
   let fourthDelay = new protos.google.protobuf.Duration();
-  fourthDelay.nanos=500000;
+  fourthDelay.seconds=1;
 
   let fourthStatus = new protos.google.rpc.Status();
   fourthStatus.code=Status.OK;
@@ -322,15 +322,15 @@ function retryStreamingRequest(){
 async function testStreaming(client: SequenceServiceClient) {
 
   const backoffSettings = createBackoffSettings(
-      100,
-      1.2,
+      10000,
+      2.5,
       1000,
       null,
       1.5,
       3000,
-      4500
+      600000
     );
-  
+
   const retryOptions = new RetryOptions([14,4],backoffSettings)
 
   let settings = {
@@ -351,7 +351,7 @@ async function testStreaming(client: SequenceServiceClient) {
     console.log("content: " + response.content);
   });
   attemptStream.on('error',(e: any) => {
-    console.log("Error Caught :", e.err)
+    console.log("Error Caught :", e.code)
     console.log("Error Message :", e.message)
   })
 }

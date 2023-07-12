@@ -27,6 +27,8 @@ import {
 import { RetryOptions, RetryRequestOptions } from '../gax';
 import { GoogleError } from '../googleError';
 import { streamingRetryRequest } from '../streamingRetryRequest';
+import { Status } from '../status';
+import { r } from 'tar';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const duplexify: DuplexifyConstructor = require('duplexify');
@@ -92,6 +94,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   retryRequestOptions?: RetryRequestOptions;
   errorSaw?: boolean = false;
   prevError?: Error;
+  prevDeadline?: number;
+  retries?: number = 0;
   /**
    * StreamProxy is a proxy to gRPC-streaming method.
    *
@@ -139,14 +143,55 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
 
 
   /**
-   * Forward events from an API request stream to the user's stream.
+   * Forward events from an failed user stream to a new user stream that will retries API.
    * @param {Stream} stream - The API request stream.
+   * @param {RetryOptions} retry - Configures the exceptions upon which the
+   *   function eshould retry, and the parameters to the exponential backoff retry
+   *   algorithm.
    */
   forwardClientEvents(stream: CancellableStream, retry: RetryOptions): CancellableStream | undefined {
     let retryStream = this.stream
-    const eventsToForward = ['metadata', 'response', 'status', "data","error"];
-    eventsToForward.forEach(event => {
+    const delayMult = retry.backoffSettings.retryDelayMultiplier;
+    const maxDelay = retry.backoffSettings.maxRetryDelayMillis;
+    const timeoutMult = retry.backoffSettings.rpcTimeoutMultiplier;
+    const maxTimeout = retry.backoffSettings.maxRpcTimeoutMillis;
+  
+    let delay = retry.backoffSettings.initialRetryDelayMillis;
+    let timeout = retry.backoffSettings.initialRpcTimeoutMillis;
+    let now = new Date();
+    let deadline: number = 0;
 
+    if (retry.backoffSettings.totalTimeoutMillis) {
+      deadline = now.getTime() + retry.backoffSettings.totalTimeoutMillis;
+    }
+    const maxRetries = retry.backoffSettings.maxRetries!;
+    
+    if ((this.prevDeadline! !== undefined) && (deadline && now.getTime() >= this.prevDeadline)) {
+      const error = new GoogleError(
+        `Total timeout of API exceeded ${retry.backoffSettings.totalTimeoutMillis} milliseconds before any response was received.`
+      );
+      error.code = Status.DEADLINE_EXCEEDED;
+      this.emit("error",error)
+      this.destroy(error)
+      // Without throwing error you get unhandled error since we are returning a new stream
+      // There might be a better way to do this
+      throw error
+    }
+
+    if (this.retries && this.retries >= maxRetries) {
+      const error = new GoogleError(
+        'Exceeded maximum number of retries before any ' +
+          'response was received'
+      );
+      error.code = Status.DEADLINE_EXCEEDED;
+      this.emit("error",error)
+      this.destroy(error)
+      throw error
+    }
+
+    this.retries!++;
+    const eventsToForward = ['metadata', 'response', 'status', "data"];
+    eventsToForward.forEach(event => {
       stream.on(event, this.emit.bind(this, event));
     });
     
@@ -154,14 +199,40 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       let e = GoogleError.parseGRPCStatusDetails(error);
       if (retry.retryCodes.indexOf(e!.code!) < 0) {
         console.log("ERROR : Should Raise retry code not allowed")
-        e.message =
+        const newError = new GoogleError(
           'Exception occurred in retry method that was ' +
-          'not classified as transient';
-        return e
+          'not classified as transient'
+        );
+        newError.code = Status.INVALID_ARGUMENT;
+        this.emit('error', newError);
+        return newError
       } else {
-          retryStream = this.retry(stream,retry)
-          this.stream = retryStream
-          return
+          const toSleep = Math.random() * delay;
+          setTimeout(() => {
+            now = new Date();
+            delay = Math.min(delay * delayMult, maxDelay);
+            const timeoutCal =
+              timeout && timeoutMult ? timeout * timeoutMult : 0;
+            const rpcTimeout = maxTimeout ? maxTimeout : 0;
+            this.prevDeadline = deadline
+            const newDeadline = deadline ? deadline - now.getTime() : 0;
+            timeout = Math.min(timeoutCal, rpcTimeout, newDeadline);
+            }, toSleep);
+      }
+
+      if (maxRetries && deadline!) {
+        const error = new GoogleError(
+          'Cannot set both totalTimeoutMillis and maxRetries ' +
+            'in backoffSettings.'
+        );
+        error.code = Status.INVALID_ARGUMENT;
+        this.emit("error",error)
+        this.destroy(error)
+        throw error
+      } else {
+        retryStream = this.retry(stream,retry)
+        this.stream = retryStream
+        return
       }
     });
     return retryStream
@@ -170,6 +241,9 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   /**
    * Forward events from an API request stream to the user's stream.
    * @param {Stream} stream - The API request stream.
+   * @param {RetryOptions} retry - Configures the exceptions upon which the
+   *   function eshould retry, and the parameters to the exponential backoff retry
+   *   algorithm.
    */
   forwardEvents(stream: CancellableStream, retry: RetryOptions) : CancellableStream | undefined {
     let retryStream = this.stream
@@ -238,6 +312,9 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    * Specifies the target stream.
    * @param {ApiCall} apiCall - the API function to be called.
    * @param {Object} argument - the argument to be passed to the apiCall.
+   * @param {RetryOptions} retry - Configures the exceptions upon which the
+   *   function eshould retry, and the parameters to the exponential backoff retry
+   *   algorithm.
    */
   setStream(
     apiCall: SimpleCallbackFunction,
