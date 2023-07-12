@@ -197,15 +197,16 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     
     stream.on('error', error => {
       let e = GoogleError.parseGRPCStatusDetails(error);
+      console.log(retry.retryCodes)
       if (retry.retryCodes.indexOf(e!.code!) < 0) {
-        console.log("ERROR : Should Raise retry code not allowed")
         const newError = new GoogleError(
           'Exception occurred in retry method that was ' +
           'not classified as transient'
         );
         newError.code = Status.INVALID_ARGUMENT;
         this.emit('error', newError);
-        return newError
+        this.destroy(error)
+        throw error
       } else {
           const toSleep = Math.random() * delay;
           setTimeout(() => {
@@ -283,7 +284,17 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       this._responseHasSent = true;
     });
     stream.on('error', error => {
-      if(this.errorSaw == false){
+      let e = GoogleError.parseGRPCStatusDetails(error);
+      if (retry.retryCodes.indexOf(e!.code!) < 0) {
+        const newError = new GoogleError(
+          'Exception occurred in retry method that was ' +
+          'not classified as transient'
+        );
+        newError.code = Status.INVALID_ARGUMENT;
+        this.emit('error', newError);
+        this.destroy(error)
+        throw error
+      } else {
         retryStream = this.retry(stream,retry)
         this.stream = retryStream
         this.prevError = error
