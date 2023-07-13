@@ -150,6 +150,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    *   algorithm.
    */
   forwardClientEvents(stream: CancellableStream, retry: RetryOptions): CancellableStream | undefined {
+    console.log("in forwardClientEvents")
     let retryStream = this.stream
     const delayMult = retry.backoffSettings.retryDelayMultiplier;
     const maxDelay = retry.backoffSettings.maxRetryDelayMillis;
@@ -178,7 +179,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       throw error
     }
 
-    if (this.retries && this.retries >= maxRetries) {
+    if (this.retries && this.retries > maxRetries) {
       const error = new GoogleError(
         'Exceeded maximum number of retries before any ' +
           'response was received'
@@ -195,6 +196,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     });
     
     stream.on('error', error => {
+      console.log("in first error")
       seenError = true;
       let e = GoogleError.parseGRPCStatusDetails(error);
       if (retry.retryCodes.indexOf(e!.code!) < 0) {
@@ -205,7 +207,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         newError.code = Status.INVALID_ARGUMENT;
         this.emit('error', newError);
         throw newError
-      } else {
+      } else if (maxRetries && this.retries! < maxRetries) {
           const toSleep = Math.random() * delay;
           setTimeout(() => {
             now = new Date();
@@ -217,6 +219,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
             const newDeadline = deadline ? deadline - now.getTime() : 0;
             timeout = Math.min(timeoutCal, rpcTimeout, newDeadline);
             }, toSleep);
+      } else {
+        return e
       }
 
       if (maxRetries && deadline!) {
@@ -286,6 +290,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       this._responseHasSent = true;
     });
     stream.on('error', error => {
+      const maxRetries = retry.backoffSettings.maxRetries!;
       let e = GoogleError.parseGRPCStatusDetails(error);
       if (retry.retryCodes.indexOf(e!.code!) < 0) {
         const newError = new GoogleError(
@@ -295,14 +300,16 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         newError.code = Status.INVALID_ARGUMENT;
         this.emit('error', newError);
         throw error
-      } else {
+      } else if (maxRetries && this.retries! < maxRetries)  {
         this.inRetryLoop = true
         retryStream = this.retry(stream,retry)
         this.stream = retryStream
         this.prevError = error
         this.errorSaw = true
+      } else {
+        return GoogleError.parseGRPCStatusDetails(error);
       }
-      GoogleError.parseGRPCStatusDetails(error);
+      return error
     });
 
     return retryStream

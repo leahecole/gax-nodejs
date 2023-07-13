@@ -227,8 +227,8 @@ async function testServerStreamingRetriesThrowsInvalidArgument(client: SequenceS
   }).then(() => {
     assert(false);
   },
-  (err: GoogleError) => {
-    assert.equal(err.code,3)
+  (err: Error) => {
+    assert.match(err.name, / not classified as transient/);
   })
 }
 

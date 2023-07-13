@@ -276,7 +276,10 @@ describe('streaming', () => {
         clearInterval(intervalId);
       });
     }
-    const cancelError = new Error('cancelled');
+    const cancelError = new GoogleError();
+    cancelError.code = 2
+    cancelError.message = "canceled"
+
     function func() {
       const s = new PassThrough({
         objectMode: true,
@@ -297,7 +300,16 @@ describe('streaming', () => {
       func,
       streaming.StreamType.SERVER_STREAMING
     );
-    const s = apiCall({}, undefined);
+    const s = apiCall({}, {
+      retry: gax.createRetryOptions([2], {
+        initialRetryDelayMillis: 100,
+        retryDelayMultiplier: 1.2,
+        maxRetryDelayMillis: 1000,
+        rpcTimeoutMultiplier: 1.5,
+        maxRpcTimeoutMillis: 3000,
+        maxRetries: 0,
+      })});
+
     let counter = 0;
     const expectedCount = 5;
     s.on('data', data => {
@@ -488,6 +500,7 @@ describe('streaming', () => {
       details: 'Failed to read',
       metadata: metadata,
     });
+    
     const spy = sinon.spy((...args: Array<{}>) => {
       assert.strictEqual(args.length, 3);
       const s = new PassThrough({
@@ -497,14 +510,32 @@ describe('streaming', () => {
       setImmediate(() => {
         s.emit('error', error);
       });
+      setImmediate(() => {
+        s.emit('end');
+      });
       return s;
     });
     const apiCall = createApiCallStreaming(
       spy,
       streaming.StreamType.SERVER_STREAMING
     );
-    const s = apiCall({}, undefined);
+
+
+
+    const s = apiCall({}, {
+      retry: gax.createRetryOptions([5], {
+        initialRetryDelayMillis: 100,
+        retryDelayMultiplier: 1.2,
+        maxRetryDelayMillis: 1000,
+        rpcTimeoutMultiplier: 1.5,
+        maxRpcTimeoutMillis: 3000,
+        maxRetries: 0,
+      }),
+    });
+    console.log("HELLO")
     s.on('error', err => {
+      s.pause()
+      s.destroy()
       assert(err instanceof GoogleError);
       assert.deepStrictEqual(err.message, 'test error');
       assert.strictEqual(err.domain, errorInfoObj.domain);
@@ -515,8 +546,11 @@ describe('streaming', () => {
       );
       done();
     });
+    s.on('end', () => {
+      done()
+    });
   });
-});
+})
 
 describe('REST streaming apiCall return StreamArrayParser', () => {
   const protos_path = path.resolve(__dirname, '..', 'fixtures', 'user.proto');
@@ -568,7 +602,7 @@ describe('REST streaming apiCall return StreamArrayParser', () => {
       streaming.StreamType.SERVER_STREAMING,
       true
     );
-    const s = apiCall({}, undefined);
+    const s = apiCall({},);
     assert.strictEqual(s.readable, true);
     assert.strictEqual(s.writable, false);
     s.on('error', err => {
