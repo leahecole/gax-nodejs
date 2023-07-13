@@ -303,6 +303,21 @@ describe('streaming', () => {
       sinon
       .stub(StreamingApiCaller.prototype, 'call')
       .callsFake((apiCall, argument, settings, stream)  => {
+        console.log("settings", settings);
+        // Retry settings
+        // TODO: do we care about this? - noresponseRetries
+        // TODO: retries - one to one with maxRetries
+        // TODO: objectMode - do we care about this?
+        // TODO: currentRetryAttempt - not sure if needed
+        // TODO: this will take a bit - shouldRetryFn
+
+        //Backoff settings
+        // maxRetryDelay - this is in seconds, need to convert to milliseconds
+        assert(settings.retry?.backoffSettings.maxRetryDelayMillis == 70000)
+        // retryDelayMultiplier - should be a one to one mapping to retryDelayMultiplier
+        assert(settings.retry?.backoffSettings.retryDelayMultiplier == 3)
+        // totalTimeout - this is in seconds and needs to be converted to milliseconds and the totalTimeoutMillis parameter
+        assert(settings.retry?.backoffSettings.totalTimeoutMillis == 650000)
         assert(settings.retry != new gax.CallSettings().retry);
         done();
       });
