@@ -71,16 +71,16 @@ export function createApiCall(
     callOptions?: CallOptions,
     callback?: APICallback
   ) => {
-    const thisSettingsTemp = settings.merge(callOptions); //TODO: come up with a better name
-    let thisSettings = thisSettingsTemp;
     
     let currentApiCaller = apiCaller;
     const gaxStreamingRetries = (currentApiCaller as StreamingApiCaller).descriptor
     ?.gaxStreamingRetries;
 
-    // If Gax streaming retries are enabled, check settings
-    //TODO(coleleah): switch this to callOptions
-    thisSettings = checkRetrySettings(thisSettingsTemp, gaxStreamingRetries);
+    // If Gax streaming retries are enabled, check settings passed at call time and convert parameters if needed
+    const thisSettingsTemp = checkRetrySettings(callOptions, gaxStreamingRetries);
+    const thisSettings = settings.merge(thisSettingsTemp); 
+    console.log("settings have been merged", thisSettings)
+
     
     // special case: if bundling is disabled for this one call,
     // use default API caller instead

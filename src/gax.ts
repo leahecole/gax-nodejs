@@ -88,6 +88,9 @@ export interface RetryRequestOptions {
   noResponseRetries?: number;
   currentRetryAttempt?: number;
   shouldRetryFn?: () => boolean;
+  maxRetryDelay?: number;
+  retryDelayMultiplier?: number;
+  totalTimeout?: number;
 }
 
 /**
@@ -295,44 +298,68 @@ export class CallSettings {
 }
 
 /**
- * Validates retry settings and converts deprecated parameter where appropriate
+ * Validates passed retry options and converts deprecated parameter where appropriate
  *
- * @param {CallSettings} settings - a list of merged retry settings
- * @return {CallSettings} A new CallSettings object.
+ * @param {CallOptions} options - a list of merged retry settings
+ * @return {CallOptions} A new CallSettings object.
  *
  */
+
+// TODO rename to reflect options not settings
 export function checkRetrySettings(
-  settings: CallSettings,
+  options?: CallOptions,
   gaxStreamingRetries?: boolean
-): CallSettings {
+): CallOptions | undefined {
   console.log("Checking retry settings");
-  // if a user provided retry AND retryRequestOptions at call time, throw an error
-  //TODO: coleleah - this is an issue - it is the merged retry settings not the calloptions
-  if (gaxStreamingRetries){
-    if (settings.retry !== undefined && settings.retryRequestOptions !== undefined){
-      //TODO: link to documentation when it exists
-      throw new Error(`Only one of retry or retryRequestOptions may be set`); 
+  // options will be undefined if no CallOptions object is passed at call time
+  if(options){
+    // if a user provided retry AND retryRequestOptions at call time, throw an error
+    if (gaxStreamingRetries){
+      if (options.retry !== undefined && options.retryRequestOptions !== undefined){
+        //TODO: link to documentation when it exists
+        throw new Error(`Only one of retry or retryRequestOptions may be set`); 
+      }
+    }else{
+      // if user is opted into legacy settings but has passed retry settings, let them know there might be an issue
+      if (options.retry !== undefined) {  
+        warn(
+        'legacy_streaming_retry_behavior', // TODO(coleleah): figure out warning code
+        `Legacy streaming retry behavior will not honor settings passed at call time or via client configuration. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will be set to true by default in future releases.`,
+        'DeprecationWarning'
+      );
+      }
+      if (options.retryRequestOptions !== undefined) {    
+        warn(
+        'legacy_streaming_retry_request_behavior', // TODO(coleleah): figure out warning code
+        `Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.`,
+        'DeprecationWarning'
+      );
+      console.log("retryrequestoptions", options.retryRequestOptions);
+      // do parameter conversion here:
+      // Retry settings
+      // TODO: do we care about this? - noresponseRetries
+      // TODO: retries - one to one with maxRetries
+      // TODO: objectMode - do we care about this?
+      // TODO: currentRetryAttempt - not sure if needed
+      // TODO: this will take a bit - shouldRetryFn
+
+      //Backoff settings
+      // TODO: see if there's a more elegant way to handle undefined
+      // maxRetryDelay - this is in seconds, need to convert to milliseconds
+      if (options.retryRequestOptions.maxRetryDelay){
+        const maxRetryDelayMillis = options.retryRequestOptions.maxRetryDelay * 1000;
+      }
+      // retryDelayMultiplier - should be a one to one mapping to retryDelayMultiplier
+      const retryDelayMultiplier = options.retryRequestOptions.retryDelayMultiplier;
+      // totalTimeout - this is in seconds and needs to be converted to milliseconds and the totalTimeoutMillis parameter
+      if (options.retryRequestOptions.totalTimeout){
+        const totalTimeoutMillis = options.retryRequestOptions.totalTimeout * 1000;
+      }
     }
-  }else{
-    // if user is opted into legacy settings but has passed retry settings, let them know there might be an issue
-    if (settings.retry !== undefined) {  
-      warn(
-      'legacy_streaming_retry_behavior', // TODO(coleleah): figure out warning code
-      `Legacy streaming retry behavior will not honor settings passed at call time or via client configuration. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will be set to true by default in future releases.`,
-      'DeprecationWarning'
-    );
-    }
-    if (settings.retryRequestOptions !== undefined) {    
-      warn(
-      'legacy_streaming_retry_request_behavior', // TODO(coleleah): figure out warning code
-      `Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.`,
-      'DeprecationWarning'
-    );
     }
   }
-  // If both are passed at call time, this is a no
+    return options;
 
-  return settings;
   };
 
 
