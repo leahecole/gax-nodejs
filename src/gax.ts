@@ -329,32 +329,40 @@ export function checkRetrySettings(
       );
       }
       if (options.retryRequestOptions !== undefined) {    
-        warn(
+ 
+      // console.log("retryrequestoptions", options.retryRequestOptions);
+      // // do parameter conversion here:
+      // // Retry settings
+      // // TODO: do we care about this? - noresponseRetries
+      // // TODO: retries - one to one with maxRetries
+      // // TODO: objectMode - do we care about this?
+      // // TODO: currentRetryAttempt - not sure if needed
+      // // TODO: this will take a bit - shouldRetryFn
+
+      //Backoff settings
+      let maxRetryDelayMillis;
+      let totalTimeoutMillis;
+      let retryDelayMultiplier;
+      // TODO: see if there's a more elegant way to handle undefined
+      // maxRetryDelay - this is in seconds, need to convert to milliseconds
+      if (options.retryRequestOptions.maxRetryDelay){
+        maxRetryDelayMillis = options.retryRequestOptions.maxRetryDelay * 1000;
+      }
+      // retryDelayMultiplier - should be a one to one mapping to retryDelayMultiplier
+      retryDelayMultiplier = options.retryRequestOptions.retryDelayMultiplier;
+      // totalTimeout - this is in seconds and needs to be converted to milliseconds and the totalTimeoutMillis parameter
+      if (options.retryRequestOptions.totalTimeout){
+        totalTimeoutMillis = options.retryRequestOptions.totalTimeout * 1000;
+      }
+      // create backoff settings with these values and with default values
+      if (maxRetryDelayMillis && retryDelayMultiplier && totalTimeoutMillis) {
+        const backoffSettings = createBackoffSettings(100, retryDelayMultiplier, maxRetryDelayMillis, null, null, null, totalTimeoutMillis);
+      }
+      warn(
         'legacy_streaming_retry_request_behavior', // TODO(coleleah): figure out warning code
         `Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.`,
         'DeprecationWarning'
       );
-      console.log("retryrequestoptions", options.retryRequestOptions);
-      // do parameter conversion here:
-      // Retry settings
-      // TODO: do we care about this? - noresponseRetries
-      // TODO: retries - one to one with maxRetries
-      // TODO: objectMode - do we care about this?
-      // TODO: currentRetryAttempt - not sure if needed
-      // TODO: this will take a bit - shouldRetryFn
-
-      //Backoff settings
-      // TODO: see if there's a more elegant way to handle undefined
-      // maxRetryDelay - this is in seconds, need to convert to milliseconds
-      if (options.retryRequestOptions.maxRetryDelay){
-        const maxRetryDelayMillis = options.retryRequestOptions.maxRetryDelay * 1000;
-      }
-      // retryDelayMultiplier - should be a one to one mapping to retryDelayMultiplier
-      const retryDelayMultiplier = options.retryRequestOptions.retryDelayMultiplier;
-      // totalTimeout - this is in seconds and needs to be converted to milliseconds and the totalTimeoutMillis parameter
-      if (options.retryRequestOptions.totalTimeout){
-        const totalTimeoutMillis = options.retryRequestOptions.totalTimeout * 1000;
-      }
     }
     }
   }
