@@ -59,145 +59,145 @@ describe('streaming', () => {
     sinon.restore();
   });
 
-  // it('handles server streaming', done => {
-  //   const spy = sinon.spy((...args: Array<{}>) => {
-  //     assert.strictEqual(args.length, 3);
-  //     const s = new PassThrough({
-  //       objectMode: true,
-  //     });
-  //     s.push({resources: [1, 2]});
-  //     s.push({resources: [3, 4, 5]});
-  //     s.push(null);
-  //     setImmediate(() => {
-  //       s.emit('metadata');
-  //     });
-  //     return s;
-  //   });
+  it('handles server streaming', done => {
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      s.push({resources: [1, 2]});
+      s.push({resources: [3, 4, 5]});
+      s.push(null);
+      setImmediate(() => {
+        s.emit('metadata');
+      });
+      return s;
+    });
 
-  //   const apiCall = createApiCallStreaming(
-  //     spy,
-  //     streaming.StreamType.SERVER_STREAMING
-  //   );
-  //   const s = apiCall({}, undefined);
-  //   const callback = sinon.spy(data => {
-  //     if (callback.callCount === 1) {
-  //       assert.deepStrictEqual(data, {resources: [1, 2]});
-  //     } else {
-  //       assert.deepStrictEqual(data, {resources: [3, 4, 5]});
-  //     }
-  //   });
-  //   assert.strictEqual(s.readable, true);
-  //   assert.strictEqual(s.writable, false);
-  //   s.on('data', callback);
-  //   s.on('end', () => {
-  //     assert.strictEqual(callback.callCount, 2);
-  //     done();
-  //   });
-  // });
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING
+    );
+    const s = apiCall({}, undefined);
+    const callback = sinon.spy(data => {
+      if (callback.callCount === 1) {
+        assert.deepStrictEqual(data, {resources: [1, 2]});
+      } else {
+        assert.deepStrictEqual(data, {resources: [3, 4, 5]});
+      }
+    });
+    assert.strictEqual(s.readable, true);
+    assert.strictEqual(s.writable, false);
+    s.on('data', callback);
+    s.on('end', () => {
+      assert.strictEqual(callback.callCount, 2);
+      done();
+    });
+  });
 
-  // it('handles client streaming', done => {
-  //   function func(metadata: {}, options: {}, callback: APICallback) {
-  //     assert.strictEqual(arguments.length, 3);
-  //     const s = new PassThrough({
-  //       objectMode: true,
-  //     });
-  //     const written: Array<{}> = [];
-  //     s.on('end', () => {
-  //       callback(null, written);
-  //     });
-  //     s.on('error', callback);
-  //     s.on('data', data => {
-  //       written.push(data);
-  //     });
-  //     return s;
-  //   }
+  it('handles client streaming', done => {
+    function func(metadata: {}, options: {}, callback: APICallback) {
+      assert.strictEqual(arguments.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      const written: Array<{}> = [];
+      s.on('end', () => {
+        callback(null, written);
+      });
+      s.on('error', callback);
+      s.on('data', data => {
+        written.push(data);
+      });
+      return s;
+    }
 
-  //   const apiCall = createApiCallStreaming(
-  //     //@ts-ignore
-  //     func,
-  //     streaming.StreamType.CLIENT_STREAMING
-  //   );
-  //   const s = apiCall({}, undefined, (err, response) => {
-  //     assert.strictEqual(err, null);
-  //     assert.deepStrictEqual(response, ['foo', 'bar']);
-  //     done();
-  //   });
-  //   assert.strictEqual(s.readable, false);
-  //   assert.strictEqual(s.writable, true);
-  //   s.write('foo');
-  //   s.write('bar');
-  //   s.end();
-  // });
+    const apiCall = createApiCallStreaming(
+      //@ts-ignore
+      func,
+      streaming.StreamType.CLIENT_STREAMING
+    );
+    const s = apiCall({}, undefined, (err, response) => {
+      assert.strictEqual(err, null);
+      assert.deepStrictEqual(response, ['foo', 'bar']);
+      done();
+    });
+    assert.strictEqual(s.readable, false);
+    assert.strictEqual(s.writable, true);
+    s.write('foo');
+    s.write('bar');
+    s.end();
+  });
 
-  // it('handles bidi streaming', done => {
-  //   function func() {
-  //     assert.strictEqual(arguments.length, 2);
-  //     const s = new PassThrough({
-  //       objectMode: true,
-  //     });
-  //     setImmediate(() => {
-  //       s.emit('metadata');
-  //     });
-  //     return s;
-  //   }
+  it('handles bidi streaming', done => {
+    function func() {
+      assert.strictEqual(arguments.length, 2);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      setImmediate(() => {
+        s.emit('metadata');
+      });
+      return s;
+    }
 
-  //   const apiCall = createApiCallStreaming(
-  //     //@ts-ignore
-  //     func,
-  //     streaming.StreamType.BIDI_STREAMING
-  //   );
-  //   const s = apiCall({}, undefined);
-  //   const arg = {foo: 'bar'};
-  //   const callback = sinon.spy(data => {
-  //     assert.strictEqual(data, arg);
-  //   });
-  //   s.on('data', callback);
-  //   s.on('end', () => {
-  //     assert.strictEqual(callback.callCount, 2);
-  //     done();
-  //   });
-  //   assert.strictEqual(s.readable, true);
-  //   assert.strictEqual(s.writable, true);
-  //   s.write(arg);
-  //   s.write(arg);
-  //   s.end();
-  // });
+    const apiCall = createApiCallStreaming(
+      //@ts-ignore
+      func,
+      streaming.StreamType.BIDI_STREAMING
+    );
+    const s = apiCall({}, undefined);
+    const arg = {foo: 'bar'};
+    const callback = sinon.spy(data => {
+      assert.strictEqual(data, arg);
+    });
+    s.on('data', callback);
+    s.on('end', () => {
+      assert.strictEqual(callback.callCount, 2);
+      done();
+    });
+    assert.strictEqual(s.readable, true);
+    assert.strictEqual(s.writable, true);
+    s.write(arg);
+    s.write(arg);
+    s.end();
+  });
 
-  // it('allows custom CallOptions.retry settings', done => {
-  //   sinon
-  //     .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-  //     .callsFake(stream => {
-  //       assert(stream instanceof internal.Stream);
-  //       done();
-  //     });
-  //   const spy = sinon.spy((...args: Array<{}>) => {
-  //     assert.strictEqual(args.length, 3);
-  //     const s = new PassThrough({
-  //       objectMode: true,
-  //     });
-  //     return s;
-  //   });
+  it('allows custom CallOptions.retry settings', done => {
+    sinon
+      .stub(streaming.StreamProxy.prototype, 'forwardEvents')
+      .callsFake(stream => {
+        assert(stream instanceof internal.Stream);
+        done();
+      });
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
 
-  //   const apiCall = createApiCallStreaming(
-  //     spy,
-  //     streaming.StreamType.SERVER_STREAMING
-  //   );
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING
+    );
 
 
-  //   apiCall(
-  //     {},
-  //     {
-  //       retry: gax.createRetryOptions([1], {
-  //         initialRetryDelayMillis: 100,
-  //         retryDelayMultiplier: 1.2,
-  //         maxRetryDelayMillis: 1000,
-  //         rpcTimeoutMultiplier: 1.5,
-  //         maxRpcTimeoutMillis: 3000,
-  //         totalTimeoutMillis: 4500,
-  //       }),
-  //     }
-  //   );
-  // });
+    apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([1], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          totalTimeoutMillis: 4500,
+        }),
+      }
+    );
+  });
   //TODO: YES RETRY ENABLED
     it('allows custom CallOptions.retry settings with new retry behavior', done => {
       sinon
