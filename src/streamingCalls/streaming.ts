@@ -28,7 +28,6 @@ import { RetryOptions, RetryRequestOptions } from '../gax';
 import { GoogleError } from '../googleError';
 import { streamingRetryRequest } from '../streamingRetryRequest';
 import { Status } from '../status';
-import { r } from 'tar';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const duplexify: DuplexifyConstructor = require('duplexify');

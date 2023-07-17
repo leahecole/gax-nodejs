@@ -166,7 +166,7 @@ describe('streaming', () => {
   it('allows custom CallOptions.retry settings', done => {
     sinon
       .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-      .callsFake(stream => {
+      .callsFake((stream, retry): any => {
         assert(stream instanceof internal.Stream);
         done();
       });
@@ -202,7 +202,7 @@ describe('streaming', () => {
     it('allows custom CallOptions.retry settings with new retry behavior', done => {
       sinon
         .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-        .callsFake(stream => {
+        .callsFake((stream, retry):any  => {
           assert(stream instanceof internal.Stream);
           done();
         });
