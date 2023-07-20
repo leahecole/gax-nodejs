@@ -145,7 +145,7 @@ describe('createApiCall', () => {
     const overrideRetryCodes = [1, 2, 3];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sinon.stub(retries, 'retryable').callsFake((func, retry): any => {
-      assert.strictEqual(retry.retryCodes, overrideRetryCodes);
+      assert.strictEqual(retry.retryCodesOrShouldRetryFn, overrideRetryCodes);
       return func;
     });
 
@@ -170,7 +170,7 @@ describe('createApiCall', () => {
       {},
       {
         retry: {
-          retryCodes: overrideRetryCodes,
+          retryCodesOrShouldRetryFn: overrideRetryCodes,
         },
       }
     );

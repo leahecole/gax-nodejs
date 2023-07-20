@@ -64,21 +64,26 @@ import {toLowerCamelCase} from './util';
  *   // not returning a stream, but callback is called with the paged response.
  * });
  */
+ 
+
 
 /**
  * Per-call configurable settings for retrying upon transient failure.
+ * @implements {RetryOptionsType}
  * @typedef {Object} RetryOptions
- * @property {String[]} retryCodes
+ * @property {String[] | (function)} retryCodesOrShouldRetryFn
  * @property {BackoffSettings} backoffSettings
  */
 export class RetryOptions {
-  retryCodes: number[];
+  retryCodesOrShouldRetryFn: number[] | (() => boolean);
   backoffSettings: BackoffSettings;
-  constructor(retryCodes: number[], backoffSettings: BackoffSettings) {
-    this.retryCodes = retryCodes;
+  constructor(retryCodesOrShouldRetryFn: number[] | (() => boolean), backoffSettings: BackoffSettings) {
+    this.retryCodesOrShouldRetryFn = retryCodesOrShouldRetryFn;
     this.backoffSettings = backoffSettings;
   }
 }
+
+
 
 export interface RetryRequestOptions {
   objectMode?: boolean;
@@ -87,7 +92,7 @@ export interface RetryRequestOptions {
   retries?: number;
   noResponseRetries?: number;
   currentRetryAttempt?: number;
-  shouldRetryFn?: () => boolean;
+  shouldRetryFn?: (() => boolean);
   maxRetryDelay?: number;
   retryDelayMultiplier?: number;
   totalTimeout?: number;
@@ -218,27 +223,43 @@ export class CallSettings {
     // override backoff settings.
     if (
       retry !== undefined &&
-      retry !== null &&
-      retry.retryCodes !== null &&
-      retry.retryCodes.length > 0
-    ) {
-      retry.backoffSettings.initialRpcTimeoutMillis = timeout;
-      retry.backoffSettings.maxRpcTimeoutMillis = timeout;
-      retry.backoffSettings.totalTimeoutMillis = timeout;
+      retry !== null
+    ){
+      // if verify that the retry codes/retry function are not null or undefined
+      if (retry.retryCodesOrShouldRetryFn !== null && retry.retryCodesOrShouldRetryFn !== undefined){
+          // if it's an array of retry codes, make sure it has an element or if it's a function
+          if ((retry.retryCodesOrShouldRetryFn instanceof Array && retry.retryCodesOrShouldRetryFn.length > 0)  || (retry.retryCodesOrShouldRetryFn instanceof Function)){
+            retry.backoffSettings.initialRpcTimeoutMillis = timeout;
+            retry.backoffSettings.maxRpcTimeoutMillis = timeout;
+            retry.backoffSettings.totalTimeoutMillis = timeout;
+          }
+      }
+
     }
+  
     // If the user provides a timeout to the method, that timeout value will be used
     // to override the backoff settings.
     if ('timeout' in options) {
       timeout = options.timeout!;
       if (
         retry !== undefined &&
-        retry !== null &&
-        retry.retryCodes.length > 0
-      ) {
-        retry.backoffSettings.initialRpcTimeoutMillis = timeout;
-        retry.backoffSettings.maxRpcTimeoutMillis = timeout;
-        retry.backoffSettings.totalTimeoutMillis = timeout;
+        retry !== null
+
+      ){
+        // if verify that the retry codes/retry function are not null or undefined
+        if (retry.retryCodesOrShouldRetryFn !== null && retry.retryCodesOrShouldRetryFn !== undefined){
+          // if it's an array of retry codes, make sure it has an element or if it's a function
+          if ((retry.retryCodesOrShouldRetryFn instanceof Array && retry.retryCodesOrShouldRetryFn.length > 0)  || (retry.retryCodesOrShouldRetryFn instanceof Function)){
+            retry.backoffSettings.initialRpcTimeoutMillis = timeout;
+            retry.backoffSettings.maxRpcTimeoutMillis = timeout;
+            retry.backoffSettings.totalTimeoutMillis = timeout;
+          }
+        }
+        
       }
+      
+      
+      
     }
     if ('retry' in options) {
       retry = mergeRetryOptions(retry || ({} as RetryOptions), options.retry!);
@@ -374,7 +395,7 @@ export function checkRetrySettings(
 /**
  * Per-call configurable settings for retrying upon transient failure.
  *
- * @param {number[]} retryCodes - a list of Google API canonical error codes
+ * @param {number[] | function} retryCodesOrShouldRetryFn - a list of Google API canonical error codes OR a function that returns a boolean to determine retry behavior
  *   upon which a retry should be attempted.
  * @param {BackoffSettings} backoffSettings - configures the retry
  *   exponential backoff algorithm.
@@ -382,14 +403,16 @@ export function checkRetrySettings(
  *
  */
 export function createRetryOptions(
-  retryCodes: number[],
+  retryCodesOrShouldRetryFn: number[] | (() => boolean),
   backoffSettings: BackoffSettings
 ): RetryOptions {
   return {
-    retryCodes,
+    retryCodesOrShouldRetryFn,
     backoffSettings,
   };
 }
+
+
 
 /**
  * Parameters to the exponential backoff algorithm for retrying.
@@ -558,7 +581,7 @@ function constructRetry(
     return null;
   }
 
-  let codes: number[] | null = null;
+  let codes: number[] | null = null; // this is one instance where it will NOT be an array OR a function because we do not allow shouldRetryFn in the client
   if (retryCodes && 'retry_codes_name' in methodConfig) {
     const retryCodesName = methodConfig['retry_codes_name'];
     codes = (retryCodes[retryCodesName!] || []).map(name => {
@@ -605,16 +628,16 @@ function mergeRetryOptions(
     return null;
   }
 
-  if (!overrides.retryCodes && !overrides.backoffSettings) {
+  if (!overrides.retryCodesOrShouldRetryFn && !overrides.backoffSettings) {
     return retry;
   }
 
-  const codes = overrides.retryCodes ? overrides.retryCodes : retry.retryCodes;
+  const codesOrFunction = overrides.retryCodesOrShouldRetryFn ? overrides.retryCodesOrShouldRetryFn : retry.retryCodesOrShouldRetryFn;
 
   const backoffSettings = overrides.backoffSettings
     ? overrides.backoffSettings
     : retry.backoffSettings;
-  return createRetryOptions(codes!, backoffSettings!);
+  return createRetryOptions(codesOrFunction!, backoffSettings!);
 }
 
 export interface ServiceConfig {

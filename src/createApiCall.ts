@@ -102,8 +102,9 @@ export function createApiCall(
         if (
           !streaming &&
           retry &&
-          retry.retryCodes &&
-          retry.retryCodes.length > 0
+          retry.retryCodesOrShouldRetryFn &&
+          retry.retryCodesOrShouldRetryFn instanceof Array &&
+          retry.retryCodesOrShouldRetryFn.length > 0
         ) {
           retry.backoffSettings.initialRpcTimeoutMillis =
             retry.backoffSettings.initialRpcTimeoutMillis ||

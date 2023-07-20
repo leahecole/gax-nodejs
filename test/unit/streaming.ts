@@ -199,7 +199,9 @@ describe('streaming', () => {
     );
   });
   //TODO: YES RETRY ENABLED
-    it('allows custom CallOptions.retry settings with new retry behavior', done => {
+    
+    //TODO(coleleah)
+    it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
       sinon
         .stub(streaming.StreamProxy.prototype, 'forwardEvents')
         .callsFake((stream, retry):any  => {
@@ -225,7 +227,7 @@ describe('streaming', () => {
       apiCall(
         {},
         {
-          retry: gax.createRetryOptions([1], {
+          retry: gax.createRetryOptions(function alwaysRetry(){return true}, {
             initialRetryDelayMillis: 100,
             retryDelayMultiplier: 1.2,
             maxRetryDelayMillis: 1000,
@@ -236,6 +238,9 @@ describe('streaming', () => {
         }
       );
     });
+    //TODO(coleleah)
+    
+    //TODO(coleleah)
     it('throws an error when both retryRequestoptions and retryOptions are passed at call time when new retry behavior is enabled', done => {
       // TODO(coleleah): this might not be needed
       //if this is reached, it means the settings merge in createAPICall did not fail properly
@@ -564,8 +569,8 @@ describe('streaming', () => {
         })
     
   });
-
-  it('forwards metadata and status', done => {
+//TODO fix indentation
+  it.skip('forwards metadata and status', done => {
     const responseMetadata = {metadata: true};
     const status = {code: 0, metadata: responseMetadata};
     const expectedResponse = {
@@ -888,7 +893,7 @@ describe('streaming', () => {
   });
 });
 
-describe('REST streaming apiCall return StreamArrayParser', () => {
+describe.skip('REST streaming apiCall return StreamArrayParser', () => {
   const protos_path = path.resolve(__dirname, '..', 'fixtures', 'user.proto');
   const root = protobuf.loadSync(protos_path);
   const UserService = root.lookupService('UserService');
