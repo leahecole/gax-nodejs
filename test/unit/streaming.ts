@@ -163,152 +163,119 @@ describe('streaming', () => {
     s.end();
   });
 
-  it('allows custom CallOptions.retry settings', done => {
-    sinon
-      .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-      .callsFake((stream, retry): any => {
-        assert(stream instanceof internal.Stream);
-        done();
-      });
-    const spy = sinon.spy((...args: Array<{}>) => {
-      assert.strictEqual(args.length, 3);
-      const s = new PassThrough({
-        objectMode: true,
-      });
-      return s;
-    });
-
-    const apiCall = createApiCallStreaming(
-      spy,
-      streaming.StreamType.SERVER_STREAMING
-    );
-
-
-    apiCall(
-      {},
-      {
-        retry: gax.createRetryOptions([1], {
-          initialRetryDelayMillis: 100,
-          retryDelayMultiplier: 1.2,
-          maxRetryDelayMillis: 1000,
-          rpcTimeoutMultiplier: 1.5,
-          maxRpcTimeoutMillis: 3000,
-          totalTimeoutMillis: 4500,
-        }),
-      }
-    );
-  });
-  //TODO: YES RETRY ENABLED
-    
-    //TODO(coleleah)
-    it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
-      sinon
-        .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-        .callsFake((stream, retry):any  => {
-          assert(stream instanceof internal.Stream);
-          done();
+  describe('handles server streaming retries in gax when gaxStreamingRetries is enabled', () => {
+      //TODO(coleleah)
+      it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
+        sinon
+          .stub(streaming.StreamProxy.prototype, 'forwardEvents')
+          .callsFake((stream, retry):any  => {
+            assert(stream instanceof internal.Stream);
+            done();
+          });
+        const spy = sinon.spy((...args: Array<{}>) => {
+          assert.strictEqual(args.length, 3);
+          const s = new PassThrough({
+            objectMode: true,
+          });
+          return s;
         });
-      const spy = sinon.spy((...args: Array<{}>) => {
-        assert.strictEqual(args.length, 3);
-        const s = new PassThrough({
-          objectMode: true,
-        });
-        return s;
-      });
-
-      const apiCall = createApiCallStreaming(
-        spy,
-        streaming.StreamType.SERVER_STREAMING,
-        false,
-        true //gaxStreamingRetries
-      );
-
-
-      apiCall(
-        {},
-        {
-          retry: gax.createRetryOptions(function alwaysRetry(){return true}, {
-            initialRetryDelayMillis: 100,
-            retryDelayMultiplier: 1.2,
-            maxRetryDelayMillis: 1000,
-            rpcTimeoutMultiplier: 1.5,
-            maxRpcTimeoutMillis: 3000,
-            totalTimeoutMillis: 4500,
-          }),
-        }
-      );
-    });
-    //TODO(coleleah)
-    
-    //TODO(coleleah)
-    it('throws an error when both retryRequestoptions and retryOptions are passed at call time when new retry behavior is enabled', done => {
-      // TODO(coleleah): this might not be needed
-      //if this is reached, it means the settings merge in createAPICall did not fail properly
-      sinon
-      .stub(StreamingApiCaller.prototype, 'call')
-      .callsFake((apiCall, argument, settings, stream)  => {
-        throw new Error("This shouldn't be happening")
-      });
-
-      const spy = sinon.spy((...args: Array<{}>) => {
-        assert.strictEqual(args.length, 3);
-        const s = new PassThrough({
-          objectMode: true,
-        });
-        return s;
-      });
-
-      const apiCall = createApiCallStreaming(
-        spy,
-        streaming.StreamType.SERVER_STREAMING,
-        false, 
-        true // ensure we're doing the new retries
-      );
-
-      const passedRetryRequestOptions = {
-        objectMode: false,
-        retries: 1,
-        maxRetryDelay: 70,
-        retryDelayMultiplier: 3,
-        totalTimeout: 650,
-        noResponseRetries: 3,
-        currentRetryAttempt: 0,
-        shouldRetryFn: function alwaysRetry() {
-          return true;
-        },
-        
-      };
-      // make the call with both options passed at call time
-      try {
+  
+        const apiCall = createApiCallStreaming(
+          spy,
+          streaming.StreamType.SERVER_STREAMING,
+          false,
+          true //gaxStreamingRetries
+        );
+  
+  
         apiCall(
           {},
           {
-            retryRequestOptions: passedRetryRequestOptions,
-            retry: gax.createRetryOptions([1], {
-              initialRetryDelayMillis: 300,
+            retry: gax.createRetryOptions(function alwaysRetry(){return true}, {
+              initialRetryDelayMillis: 100,
               retryDelayMultiplier: 1.2,
               maxRetryDelayMillis: 1000,
               rpcTimeoutMultiplier: 1.5,
               maxRpcTimeoutMillis: 3000,
               totalTimeoutMillis: 4500,
             }),
-          },
+          }
         );
-      } catch (err) {
-        assert(err instanceof Error)
-        assert.strictEqual(err.toString(), "Error: Only one of retry or retryRequestOptions may be set")
-        done();
-      }
-    });
+      });
+      //TODO(coleleah)
+      
+      //TODO(coleleah)
+      it('throws an error when both retryRequestoptions and retryOptions are passed at call time when new retry behavior is enabled', done => {
+        // TODO(coleleah): this might not be needed
+        //if this is reached, it means the settings merge in createAPICall did not fail properly
+        sinon
+        .stub(StreamingApiCaller.prototype, 'call')
+        .callsFake((apiCall, argument, settings, stream)  => {
+          throw new Error("This shouldn't be happening")
+        });
+  
+        const spy = sinon.spy((...args: Array<{}>) => {
+          assert.strictEqual(args.length, 3);
+          const s = new PassThrough({
+            objectMode: true,
+          });
+          return s;
+        });
+  
+        const apiCall = createApiCallStreaming(
+          spy,
+          streaming.StreamType.SERVER_STREAMING,
+          false, 
+          true // ensure we're doing the new retries
+        );
+  
+        const passedRetryRequestOptions = {
+          objectMode: false,
+          retries: 1,
+          maxRetryDelay: 70,
+          retryDelayMultiplier: 3,
+          totalTimeout: 650,
+          noResponseRetries: 3,
+          currentRetryAttempt: 0,
+          shouldRetryFn: function alwaysRetry() {
+            return true;
+          },
+          
+        };
+        // make the call with both options passed at call time
+        try {
+          apiCall(
+            {},
+            {
+              retryRequestOptions: passedRetryRequestOptions,
+              retry: gax.createRetryOptions([1], {
+                initialRetryDelayMillis: 300,
+                retryDelayMultiplier: 1.2,
+                maxRetryDelayMillis: 1000,
+                rpcTimeoutMultiplier: 1.5,
+                maxRpcTimeoutMillis: 3000,
+                totalTimeoutMillis: 4500,
+              }),
+            },
+          );
+        } catch (err) {
+          assert(err instanceof Error)
+          assert.strictEqual(err.toString(), "Error: Only one of retry or retryRequestOptions may be set")
+          done();
+        }
+      });
+    
 
-  //TODO(coleleah): make a test that shows deprecation notice and converts retry request options passed at call time
+  });
+  describe('properly warns the user about server streaming retry behavior when gaxStreamingRetries is disabled', () => {
+    //TODO(coleleah): make a test that shows deprecation notice and converts retry request options passed at call time
     it('throws a warning and converts retryRequestOptions for new retry behavior', done => {
       const warnStub = sinon.stub(warnings, 'warn');
       
       sinon
       .stub(StreamingApiCaller.prototype, 'call')
       .callsFake((apiCall, argument, settings, stream) => {
-        console.log(settings.retry)
+        // console.log(settings.retry)
         try {
               // Retry settings
           // TODO: do we care about this? - noresponseRetries
@@ -567,6 +534,11 @@ describe('streaming', () => {
         assert.strictEqual(warnStub.callCount, 2);
         warnStub.restore();
         })
+
+  });
+    
+
+  
     
   });
 //TODO fix indentation

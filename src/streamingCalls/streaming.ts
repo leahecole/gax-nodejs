@@ -341,7 +341,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
 
     if (this.type === StreamType.SERVER_STREAMING) {
       if (this.rest) {
-        console.log("In Rest")
         const stream = apiCall(argument, this._callback) as CancellableStream;
         this.stream = stream;
         this.setReadable(stream);
