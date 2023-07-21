@@ -139,7 +139,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       this._callback
     ) as CancellableStream;
     this.stream = new_stream;
-    const retryStream = this.forwardClientEvents(new_stream, retry);
+    const retryStream = this.streamHandoffHelper(new_stream, retry);
     if (retryStream !== undefined) {
       return retryStream;
     }
@@ -147,13 +147,9 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   /**
-   * Forward events from an failed user stream to a new user stream that will retries API.
-   * @param {Stream} stream - The API request stream.
-   * @param {RetryOptions} retry - Configures the exceptions upon which the
-   *   function eshould retry, and the parameters to the exponential backoff retry
-   *   algorithm.
+   * Add Comments
    */
-  forwardClientEvents(
+  streamHandoffHelper(
     stream: CancellableStream,
     retry: RetryOptions
   ): CancellableStream | undefined {
