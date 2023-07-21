@@ -15,16 +15,24 @@
  */
 
 'use strict';
-import { EchoClient, SequenceServiceClient,protos } from 'showcase-echo-client';
+import {EchoClient, SequenceServiceClient, protos} from 'showcase-echo-client';
 import {ShowcaseServer} from 'showcase-server';
 
-
 import * as assert from 'assert';
-import { promises as fsp } from 'fs';
+import {promises as fsp} from 'fs';
 import * as path from 'path';
-import { protobuf, grpc, GoogleError, GoogleAuth, Status,createBackoffSettings, CallOptions, RetryOptions, createDefaultBackoffSettings} from 'google-gax';
+import {
+  protobuf,
+  grpc,
+  GoogleError,
+  GoogleAuth,
+  Status,
+  createBackoffSettings,
+  CallOptions,
+  RetryOptions,
+  createDefaultBackoffSettings,
+} from 'google-gax';
 import stream = require('stream');
-
 
 async function testShowcase() {
   const grpcClientOpts = {
@@ -35,7 +43,7 @@ async function testShowcase() {
   const grpcClientOptsWithNewRetry = {
     grpc,
     sslCreds: grpc.credentials.createInsecure(),
-    newRetry: true
+    newRetry: true,
   };
 
   const fakeGoogleAuth = {
@@ -63,32 +71,32 @@ async function testShowcase() {
     port: 7469,
     auth: fakeGoogleAuth,
   };
-  
+
   function sleep(ms: number | undefined) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       setTimeout(resolve, ms);
     });
   }
-  
+
   // const grpcClient = new EchoClient(grpcClientOpts);
   // const grpcSequenceClient = new SequenceServiceClient(grpcClientOpts);
 
   // const grpcClientWithNewRetry = new EchoClient(grpcClientOptsWithNewRetry);
-  const grpcSequenceClientWithNewRetry = new SequenceServiceClient(grpcClientOptsWithNewRetry);
+  const grpcSequenceClientWithNewRetry = new SequenceServiceClient(
+    grpcClientOptsWithNewRetry
+  );
 
   // const fallbackClient = new EchoClient(fallbackClientOpts);
   // const restClient = new EchoClient(restClientOpts);
 
   // assuming gRPC server is started locally
   // await testCreateSequence(grpcSequenceClient);
-  await testStreaming(grpcSequenceClientWithNewRetry).then(async ()=>{
+  await testStreaming(grpcSequenceClientWithNewRetry).then(async () => {
     // console.log("Hi")
     // grpcSequenceClientWithNewRetry.initialize()
     // const sequnceReport = "streamingsequences/0/streamingSequenceReport"
-  
     // const reportRequest = new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest()
     // reportRequest.name = sequnceReport
-  
     // const report = await grpcSequenceClientWithNewRetry.getStreamingSequenceReport(reportRequest);
     // console.log("report:", report[0].attempts)
   });
@@ -121,10 +129,10 @@ async function testShowcase() {
   // await testChatThrows(restClient); // REGAPIC does not support bidi streaming
   // await testWait(restClient);
 
-  // // Testing with newRetry being true 
+  // // Testing with newRetry being true
   // await testCreateSequence(grpcSequenceClientWithNewRetry);
   // await streamingNotRetryEligible(grpcSequenceClientWithNewRetry);
-  
+
   // await testEcho(grpcClientWithNewRetry);
   // await testEchoError(grpcClientWithNewRetry);
   // await testExpand(grpcClientWithNewRetry);
@@ -135,318 +143,336 @@ async function testShowcase() {
   // await testWait(grpcClientWithNewRetry);
 }
 
-function getStreamingSequenceRequest(){
-  const request = new protos.google.showcase.v1beta1.CreateStreamingSequenceRequest()
+function getStreamingSequenceRequest() {
+  const request =
+    new protos.google.showcase.v1beta1.CreateStreamingSequenceRequest();
 
-  let firstDelay = new protos.google.protobuf.Duration();
-  firstDelay.seconds=1;
+  const firstDelay = new protos.google.protobuf.Duration();
+  firstDelay.seconds = 1;
 
-  let firstStatus = new protos.google.rpc.Status();
-  firstStatus.code=Status.UNAVAILABLE;
-  firstStatus.message="UNAVAILABLE";
+  const firstStatus = new protos.google.rpc.Status();
+  firstStatus.code = Status.UNAVAILABLE;
+  firstStatus.message = 'UNAVAILABLE';
 
-  let firstResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  firstResponse.delay=firstDelay;
-  firstResponse.status=firstStatus;
+  const firstResponse =
+    new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  firstResponse.delay = firstDelay;
+  firstResponse.status = firstStatus;
 
-  // The Index you want the stream to fail or send the status 
-  // This  should be index + 1 so if you want to send status at index 0 
+  // The Index you want the stream to fail or send the status
+  // This  should be index + 1 so if you want to send status at index 0
   // you would provide firstResponse.responseIndex=1
 
-  firstResponse.responseIndex=1;
-  
-  let secondDelay = new protos.google.protobuf.Duration();
-  secondDelay.seconds=1;
+  firstResponse.responseIndex = 1;
 
-  let secondStatus = new protos.google.rpc.Status();
-  secondStatus.code=Status.DEADLINE_EXCEEDED;
-  secondStatus.message="DEADLINE_EXCEEDED";
+  const secondDelay = new protos.google.protobuf.Duration();
+  secondDelay.seconds = 1;
 
-  let secondResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  secondResponse.delay=secondDelay;
-  secondResponse.status=secondStatus;
-  secondResponse.responseIndex=2
+  const secondStatus = new protos.google.rpc.Status();
+  secondStatus.code = Status.DEADLINE_EXCEEDED;
+  secondStatus.message = 'DEADLINE_EXCEEDED';
 
+  const secondResponse =
+    new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  secondResponse.delay = secondDelay;
+  secondResponse.status = secondStatus;
+  secondResponse.responseIndex = 2;
 
-  let thirdDelay = new protos.google.protobuf.Duration();
-  thirdDelay.seconds=1;
+  const thirdDelay = new protos.google.protobuf.Duration();
+  thirdDelay.seconds = 1;
 
-  let thirdStatus = new protos.google.rpc.Status();
-  thirdStatus.code=Status.DEADLINE_EXCEEDED;
-  thirdStatus.message="DEADLINE_EXCEEDED";
+  const thirdStatus = new protos.google.rpc.Status();
+  thirdStatus.code = Status.DEADLINE_EXCEEDED;
+  thirdStatus.message = 'DEADLINE_EXCEEDED';
 
-  let thirdResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  thirdResponse.delay=secondDelay;
-  thirdResponse.status=secondStatus;
-  thirdResponse.responseIndex=3
+  const thirdResponse =
+    new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  thirdResponse.delay = secondDelay;
+  thirdResponse.status = secondStatus;
+  thirdResponse.responseIndex = 3;
 
-  let fourthDelay = new protos.google.protobuf.Duration();
-  fourthDelay.seconds=1;
+  const fourthDelay = new protos.google.protobuf.Duration();
+  fourthDelay.seconds = 1;
 
-  let fourthStatus = new protos.google.rpc.Status();
-  fourthStatus.code=Status.OK;
-  fourthStatus.message="OK";
+  const fourthStatus = new protos.google.rpc.Status();
+  fourthStatus.code = Status.OK;
+  fourthStatus.message = 'OK';
 
-  let fourthResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  fourthResponse.delay=thirdDelay;
-  fourthResponse.status=thirdStatus;
-  fourthResponse.responseIndex=11;
+  const fourthResponse =
+    new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  fourthResponse.delay = thirdDelay;
+  fourthResponse.status = thirdStatus;
+  fourthResponse.responseIndex = 11;
 
-  let streamingSequence = new protos.google.showcase.v1beta1.StreamingSequence()
-  streamingSequence.responses = [firstResponse,secondResponse,fourthResponse];
-  streamingSequence.content = "This is testing the brand new and shiny StreamingSequence server 3";
-  request.streamingSequence = streamingSequence
+  const streamingSequence =
+    new protos.google.showcase.v1beta1.StreamingSequence();
+  streamingSequence.responses = [firstResponse, secondResponse, fourthResponse];
+  streamingSequence.content =
+    'This is testing the brand new and shiny StreamingSequence server 3';
+  request.streamingSequence = streamingSequence;
 
-  return request
+  return request;
 }
 
 async function testEcho(client: EchoClient) {
-    const backoffSettings = createBackoffSettings(
-      100,
-      1.2,
-      1000,
-      null,
-      1.5,
-      3000,
-      45000
-    );
+  const backoffSettings = createBackoffSettings(
+    100,
+    1.2,
+    1000,
+    null,
+    1.5,
+    3000,
+    45000
+  );
 
-  const retryOptions = new RetryOptions([4],backoffSettings)
+  const retryOptions = new RetryOptions([4], backoffSettings);
 
-  let settings = {
-    retry:retryOptions,
-  }
+  const settings = {
+    retry: retryOptions,
+  };
 
   const request = {
     content: 'test',
-    error:{
-      code:4,
-      message:"deadline"
-    }
+    error: {
+      code: 4,
+      message: 'deadline',
+    },
   };
   const timer = setTimeout(() => {
     throw new Error('End-to-end testEcho method fails with timeout');
   }, 12000);
-  const [response] = await client.echo(request,settings);
+  const [response] = await client.echo(request, settings);
   clearTimeout(timer);
   assert.deepStrictEqual(request.content, response.content);
 }
 
-
-
 async function testCreateSequence(client: SequenceServiceClient) {
-  client.initialize()
+  client.initialize();
   const request = getStreamingSequenceRequest();
   // Run request
 
   const response = await client.createStreamingSequence(request);
-  const sequence = response[0]
-  let reports: any[] = []
+  const sequence = response[0];
+  const reports: any[] = [];
 
-  let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
-  attemptRequest.name = sequence.name!
+  const attemptRequest =
+    new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+  attemptRequest.name = sequence.name!;
 
   // Inspired by https://pgarciacamou.medium.com/javascript-recursive-re-try-catch-a761ca0c0533
-  async function multipleSequenceAttempts(numberOfAttempts = 1): Promise<stream> {
-      const attemptStream = await client.attemptStreamingSequence(attemptRequest)
-      attemptStream.on('error',async function(e: any) {
-        if (numberOfAttempts > 0) {
-          return await multipleSequenceAttempts(numberOfAttempts - 1)
-        } else {
-          throw e
-        }
-      })
+  async function multipleSequenceAttempts(
+    numberOfAttempts = 1
+  ): Promise<stream> {
+    const attemptStream = await client.attemptStreamingSequence(attemptRequest);
+    attemptStream.on('error', async (e: any) => {
+      if (numberOfAttempts > 0) {
+        return await multipleSequenceAttempts(numberOfAttempts - 1);
+      } else {
+        throw e;
+      }
+    });
 
-      attemptStream.on('end',async function() {
-        const sequnceReport = sequence.name! + "/streamingSequenceReport"
-    
-        const reportRequest = new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest()
-        reportRequest.name = sequnceReport
-      
-        const report = await client.getStreamingSequenceReport(reportRequest);
+    attemptStream.on('end', async () => {
+      const sequnceReport = sequence.name! + '/streamingSequenceReport';
 
-        assert.equal(report[0].attempts![0].contentSent,"This ")
-        assert.equal(report[0].attempts![1].contentSent,"This is ")
-        assert.equal(report[0].attempts![1].contentSent,"This is testing the brand new and shiny StreamingSequence server 3 ")
-      });
-      return attemptStream
+      const reportRequest =
+        new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest();
+      reportRequest.name = sequnceReport;
+
+      const report = await client.getStreamingSequenceReport(reportRequest);
+
+      assert.equal(report[0].attempts![0].contentSent, 'This ');
+      assert.equal(report[0].attempts![1].contentSent, 'This is ');
+      assert.equal(
+        report[0].attempts![1].contentSent,
+        'This is testing the brand new and shiny StreamingSequence server 3 '
+      );
+    });
+    return attemptStream;
   }
 
   let attemptStream;
-  if (sequence.responses){
-    const numResponses = sequence.responses.length
-     attemptStream = await multipleSequenceAttempts(numResponses) 
-  }else{
-    const numResponses = 3
-    attemptStream = await multipleSequenceAttempts(numResponses) 
+  if (sequence.responses) {
+    const numResponses = sequence.responses.length;
+    attemptStream = await multipleSequenceAttempts(numResponses);
+  } else {
+    const numResponses = 3;
+    attemptStream = await multipleSequenceAttempts(numResponses);
   }
 }
 
-function retryStreamingRequest(){
-  
-  const request = new protos.google.showcase.v1beta1.CreateSequenceRequest()
+function retryStreamingRequest() {
+  const request = new protos.google.showcase.v1beta1.CreateSequenceRequest();
 
-  let firstDelay = new protos.google.protobuf.Duration();
-  firstDelay.nanos=150;
+  const firstDelay = new protos.google.protobuf.Duration();
+  firstDelay.nanos = 150;
 
-  let firstStatus = new protos.google.rpc.Status();
-  firstStatus.code=Status.DEADLINE_EXCEEDED;
-  firstStatus.message="DEADLINE_EXCEEDED";
+  const firstStatus = new protos.google.rpc.Status();
+  firstStatus.code = Status.DEADLINE_EXCEEDED;
+  firstStatus.message = 'DEADLINE_EXCEEDED';
 
-  let firstResponse = new protos.google.showcase.v1beta1.Sequence.Response();
-  firstResponse.delay=firstDelay;
-  firstResponse.status=firstStatus;
+  const firstResponse = new protos.google.showcase.v1beta1.Sequence.Response();
+  firstResponse.delay = firstDelay;
+  firstResponse.status = firstStatus;
 
-  // The Index you want the stream to fail or send the status 
-  // This  should be index + 1 so if you want to send status at index 0 
+  // The Index you want the stream to fail or send the status
+  // This  should be index + 1 so if you want to send status at index 0
   // you would provide firstResponse.responseIndex=1
 
-  let secondDelay = new protos.google.protobuf.Duration();
-  secondDelay.nanos=150;
+  const secondDelay = new protos.google.protobuf.Duration();
+  secondDelay.nanos = 150;
 
-  let secondStatus = new protos.google.rpc.Status();
-  secondStatus.code=Status.OK;
-  secondStatus.message="OK";
+  const secondStatus = new protos.google.rpc.Status();
+  secondStatus.code = Status.OK;
+  secondStatus.message = 'OK';
 
-  let secondResponse = new protos.google.showcase.v1beta1.Sequence.Response();
-  secondResponse.delay=secondDelay;
-  secondResponse.status=secondStatus;
+  const secondResponse = new protos.google.showcase.v1beta1.Sequence.Response();
+  secondResponse.delay = secondDelay;
+  secondResponse.status = secondStatus;
 
-  let streamingSequence = new protos.google.showcase.v1beta1.Sequence()
-  streamingSequence.responses = [firstResponse,secondResponse];
-  request.sequence = streamingSequence
+  const streamingSequence = new protos.google.showcase.v1beta1.Sequence();
+  streamingSequence.responses = [firstResponse, secondResponse];
+  request.sequence = streamingSequence;
 
-  return request
+  return request;
 }
 
 async function testStreaming(client: SequenceServiceClient) {
-
   const backoffSettings = createBackoffSettings(
-      10000,
-      2.5,
-      1000,
-      null,
-      1.5,
-      3000,
-      600000
-    );
+    10000,
+    2.5,
+    1000,
+    null,
+    1.5,
+    3000,
+    600000
+  );
 
-  const retryOptions = new RetryOptions([14,4],backoffSettings)
+  const retryOptions = new RetryOptions([14, 4], backoffSettings);
 
-  let settings = {
-    retry:retryOptions
-  }
+  const settings = {
+    retry: retryOptions,
+  };
 
-  client.initialize()
+  client.initialize();
 
   const request = getStreamingSequenceRequest();
   const response = await client.createStreamingSequence(request);
-  const sequence = response[0]
+  const sequence = response[0];
 
-  let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
-  attemptRequest.name = sequence.name!
+  const attemptRequest =
+    new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+  attemptRequest.name = sequence.name!;
 
-  const attemptStream = await client.attemptStreamingSequence(attemptRequest,settings)
+  const attemptStream = await client.attemptStreamingSequence(
+    attemptRequest,
+    settings
+  );
   attemptStream.on('data', (response: {content: string}) => {
-    console.log("content: " + response.content);
+    console.log('content: ' + response.content);
   });
-  attemptStream.on('error',(e: any) => {
-    console.log("Error Caught :", e.code)
-    console.log("Error Message :", e.message)
-  })
+  attemptStream.on('error', (e: any) => {
+    console.log('Error Caught :', e.code);
+    console.log('Error Message :', e.message);
+  });
 }
 
+function noRetryStreamingRequest() {
+  const request =
+    new protos.google.showcase.v1beta1.CreateStreamingSequenceRequest();
 
+  const firstDelay = new protos.google.protobuf.Duration();
+  firstDelay.nanos = 150;
 
+  const firstStatus = new protos.google.rpc.Status();
+  firstStatus.code = Status.UNAVAILABLE;
+  firstStatus.message = 'UNAVAILABLE';
 
+  const firstResponse =
+    new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  firstResponse.delay = firstDelay;
+  firstResponse.status = firstStatus;
 
-function noRetryStreamingRequest(){
-  
-  const request = new protos.google.showcase.v1beta1.CreateStreamingSequenceRequest()
-
-  let firstDelay = new protos.google.protobuf.Duration();
-  firstDelay.nanos=150;
-
-  let firstStatus = new protos.google.rpc.Status();
-  firstStatus.code=Status.UNAVAILABLE;
-  firstStatus.message="UNAVAILABLE";
-
-  let firstResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  firstResponse.delay=firstDelay;
-  firstResponse.status=firstStatus;
-
-  // The Index you want the stream to fail or send the status 
-  // This  should be index + 1 so if you want to send status at index 0 
+  // The Index you want the stream to fail or send the status
+  // This  should be index + 1 so if you want to send status at index 0
   // you would provide firstResponse.responseIndex=1
 
-  firstResponse.responseIndex=1;
-  
-  // We should never get to this sequence in this test because the call should not retry
-  let secondDelay = new protos.google.protobuf.Duration();
-  secondDelay.nanos=150;
-
-  let secondStatus = new protos.google.rpc.Status();
-  secondStatus.code=Status.DEADLINE_EXCEEDED;
-  secondStatus.message="DEADLINE_EXCEEDED";
-
-  let secondResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  secondResponse.delay=secondDelay;
-  secondResponse.status=secondStatus;
-  secondResponse.responseIndex=2
+  firstResponse.responseIndex = 1;
 
   // We should never get to this sequence in this test because the call should not retry
-  let thirdDelay = new protos.google.protobuf.Duration();
-  thirdDelay.nanos=500000;
+  const secondDelay = new protos.google.protobuf.Duration();
+  secondDelay.nanos = 150;
 
-  let thirdStatus = new protos.google.rpc.Status();
-  thirdStatus.code=Status.OK;
-  thirdStatus.message="OK";
+  const secondStatus = new protos.google.rpc.Status();
+  secondStatus.code = Status.DEADLINE_EXCEEDED;
+  secondStatus.message = 'DEADLINE_EXCEEDED';
 
-  let thirdResponse = new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  thirdResponse.delay=thirdDelay;
-  thirdResponse.status=thirdStatus;
-  thirdResponse.responseIndex=11;
+  const secondResponse =
+    new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  secondResponse.delay = secondDelay;
+  secondResponse.status = secondStatus;
+  secondResponse.responseIndex = 2;
 
-  let streamingSequence = new protos.google.showcase.v1beta1.StreamingSequence()
-  streamingSequence.responses = [firstResponse,secondResponse,thirdResponse];
-  streamingSequence.content = "This is testing the brand new and shiny StreamingSequence server 3";
-  request.streamingSequence = streamingSequence
+  // We should never get to this sequence in this test because the call should not retry
+  const thirdDelay = new protos.google.protobuf.Duration();
+  thirdDelay.nanos = 500000;
 
-  return request
+  const thirdStatus = new protos.google.rpc.Status();
+  thirdStatus.code = Status.OK;
+  thirdStatus.message = 'OK';
+
+  const thirdResponse =
+    new protos.google.showcase.v1beta1.StreamingSequence.Response();
+  thirdResponse.delay = thirdDelay;
+  thirdResponse.status = thirdStatus;
+  thirdResponse.responseIndex = 11;
+
+  const streamingSequence =
+    new protos.google.showcase.v1beta1.StreamingSequence();
+  streamingSequence.responses = [firstResponse, secondResponse, thirdResponse];
+  streamingSequence.content =
+    'This is testing the brand new and shiny StreamingSequence server 3';
+  request.streamingSequence = streamingSequence;
+
+  return request;
 }
 async function streamingNotRetryEligible(client: SequenceServiceClient) {
-
   const promise = new Promise(async (_, reject) => {
-    client.initialize()
+    client.initialize();
 
     const request = noRetryStreamingRequest();
     const response = await client.createStreamingSequence(request);
-    const sequence = response[0]
+    const sequence = response[0];
 
-    let attemptRequest = new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest()
-    attemptRequest.name = sequence.name!
+    const attemptRequest =
+      new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+    attemptRequest.name = sequence.name!;
 
-    const attemptStream = client.attemptStreamingSequence(attemptRequest)
+    const attemptStream = client.attemptStreamingSequence(attemptRequest);
 
-    attemptStream.on('data', (response: {content: string}) => { console.log("content: " + response.content) });
+    attemptStream.on('data', (response: {content: string}) => {
+      console.log('content: ' + response.content);
+    });
     // Alex - We needed to "reject" this error instead of throwing it in order to make the test work
     // should we be able to have this test work properly with throw(err) instead of reject?
     // if so, we may need to make a change to the sequence service
-    attemptStream.on('error', (err) => {reject(err)});  
-    attemptStream.on('end', () => { /* API call completed */ });
+    attemptStream.on('error', err => {
+      reject(err);
+    });
+    attemptStream.on('end', () => {
+      /* API call completed */
+    });
   });
 
   promise.then(
-  () => {
-    assert(false);
-  },
-  (err: Error) => {
-    assert.match(err.message, /UNAVAILABLE/);  // this error message should be the one sent in the first
-  })
-
+    () => {
+      assert(false);
+    },
+    (err: Error) => {
+      assert.match(err.message, /UNAVAILABLE/); // this error message should be the one sent in the first
+    }
+  );
 }
-
-  
 
 async function testEchoError(client: EchoClient) {
   const fixtureName = path.resolve(
@@ -517,31 +543,31 @@ async function testEchoError(client: EchoClient) {
 }
 
 async function testExpand(client: EchoClient) {
-    const backoffSettings = createBackoffSettings(
-      100,
-      1.2,
-      1000,
-      null,
-      1.5,
-      3000,
-      4500
-    );
+  const backoffSettings = createBackoffSettings(
+    100,
+    1.2,
+    1000,
+    null,
+    1.5,
+    3000,
+    4500
+  );
 
-  const retryOptions = new RetryOptions([4],backoffSettings)
+  const retryOptions = new RetryOptions([4], backoffSettings);
 
-  let settings = {
-    retry:retryOptions,
-    error:{
-      code:4,
-      message:"deadline"
-    }
-  }
+  const settings = {
+    retry: retryOptions,
+    error: {
+      code: 4,
+      message: 'deadline',
+    },
+  };
 
   const words = ['nobody', 'ever', 'reads', 'test', 'input'];
   const request = {
     content: words.join(' '),
   };
-  const stream = client.expand(request,settings);
+  const stream = client.expand(request, settings);
   const result: string[] = [];
   stream.on('data', (response: {content: string}) => {
     result.push(response.content);
@@ -764,6 +790,5 @@ async function main() {
   // }
   await testShowcase();
 }
-
 
 main();
