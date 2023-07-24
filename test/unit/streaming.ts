@@ -165,7 +165,7 @@ describe('streaming', () => {
       .callsFake((stream, retry): any => {
         assert(stream instanceof internal.Stream);
         done();
-      })
+      });
     const spy = sinon.spy((...args: Array<{}>) => {
       assert.strictEqual(args.length, 3);
       const s = new PassThrough({
@@ -297,7 +297,19 @@ describe('streaming', () => {
       func,
       streaming.StreamType.SERVER_STREAMING
     );
-    const s = apiCall({}, undefined);
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([5], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 0,
+        }),
+      }
+    );
     let counter = 0;
     const expectedCount = 5;
     s.on('data', data => {
@@ -488,6 +500,7 @@ describe('streaming', () => {
       details: 'Failed to read',
       metadata: metadata,
     });
+
     const spy = sinon.spy((...args: Array<{}>) => {
       assert.strictEqual(args.length, 3);
       const s = new PassThrough({
@@ -497,14 +510,33 @@ describe('streaming', () => {
       setImmediate(() => {
         s.emit('error', error);
       });
+      setImmediate(() => {
+        s.emit('end');
+      });
       return s;
     });
     const apiCall = createApiCallStreaming(
       spy,
       streaming.StreamType.SERVER_STREAMING
     );
-    const s = apiCall({}, undefined);
+
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([5], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 0,
+        }),
+      }
+    );
+
     s.on('error', err => {
+      s.pause();
+      s.destroy();
       assert(err instanceof GoogleError);
       assert.deepStrictEqual(err.message, 'test error');
       assert.strictEqual(err.domain, errorInfoObj.domain);
@@ -513,6 +545,9 @@ describe('streaming', () => {
         JSON.stringify(err.errorInfoMetadata),
         JSON.stringify(errorInfoObj.metadata)
       );
+      done();
+    });
+    s.on('end', () => {
       done();
     });
   });
