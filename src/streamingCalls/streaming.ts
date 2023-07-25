@@ -261,6 +261,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     eventsToForward.forEach(event => {
       stream.on(event, this.emit.bind(this, event));
     });
+    console.log('FORWARD EVENTS');
     // gRPC is guaranteed emit the 'status' event but not 'metadata', and 'status' is the last event to emit.
     // Emit the 'response' event if stream has no 'metadata' event.
     // This avoids the stream swallowing the other events, such as 'end'.
@@ -294,7 +295,9 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     stream.on('error', error => {
       const timeout = retry.backoffSettings.totalTimeoutMillis;
       const maxRetries = retry.backoffSettings.maxRetries!;
+      console.log(`MAX RETRIES : ${maxRetries}`);
       if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) {
+        console.log('ENTERED');
         const e = GoogleError.parseGRPCStatusDetails(error);
         if (retry.retryCodes.indexOf(e!.code!) < 0) {
           const newError = new GoogleError(
@@ -306,6 +309,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
           this.destroy(error);
           throw error;
         } else {
+          console.log('RETRYING');
           retryStream = this.retry(stream, retry);
           this.stream = retryStream;
           this.prevError = error;
