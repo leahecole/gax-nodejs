@@ -33,7 +33,7 @@ import path = require('path');
 import protobuf = require('protobufjs');
 import {GoogleError} from '../../src';
 import {Metadata} from '@grpc/grpc-js';
-import {error} from 'console';
+import {count, error} from 'console';
 
 function createApiCallStreaming(
   func:
@@ -553,32 +553,47 @@ describe('streaming', () => {
   //   });
   // });
 
-  it('retries', done => {
+  it('emit error and retry once', done => {
     const error = Object.assign(new GoogleError('test error'), {
       code: 5,
       details: 'Failed to read',
     });
+    let counter = 0;
     const expectedStatus = {code: 0};
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function func() {
+    const receivedData: string[] = [];
+
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
       const s = new PassThrough({
         objectMode: true,
       });
-      s.push('Hello');
-      s.push('World');
-      s.push('testing');
-      s.push('retries');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setImmediate(() => {
-        s.emit('metadata');
+        s.push('Hello');
+        s.push('World');
+
+        if (counter === 0) {
+          counter++;
+          s.emit('error', error);
+        } else if (counter === 1) {
+          counter++;
+          s.push('testing');
+          s.push('retries');
+          s.emit('status', expectedStatus);
+        } else if (counter > 1) {
+          assert.deepStrictEqual(
+            receivedData.join(' '),
+            'Hello World testing retries'
+          );
+          done();
+        }
       });
       return s;
-    }
+    });
     const apiCall = createApiCallStreaming(
-      //@ts-ignore
-      func,
+      spy,
       streaming.StreamType.SERVER_STREAMING
     );
+
     const s = apiCall(
       {},
       {
@@ -592,126 +607,169 @@ describe('streaming', () => {
         }),
       }
     );
-    let counter = 0;
-    const expectedCount = 5;
+
     s.on('data', data => {
-      console.log(`COUNTER ${counter}`);
-      console.log(`DATA : ${data}`);
-      counter++;
-      if (counter === 2) {
-        s.emit('error', error);
-      }
-      if (counter === 4) {
-        s.emit('status', expectedStatus);
-        s.emit('end');
-      }
+      receivedData.push(data);
     });
     s.on('error', err => {
-      console.log('IN ERROR');
-      done();
-    });
-    s.on('end', () => {
-      console.log('IN END');
+      assert(err instanceof GoogleError);
+      assert.deepStrictEqual(err.message, 'test error');
+      assert.strictEqual(err.code, 5);
     });
   });
 });
 
-// describe('REST streaming apiCall return StreamArrayParser', () => {
-//   const protos_path = path.resolve(__dirname, '..', 'fixtures', 'user.proto');
-//   const root = protobuf.loadSync(protos_path);
-//   const UserService = root.lookupService('UserService');
-//   UserService.resolveAll();
-//   const streamMethod = UserService.methods['RunQuery'];
-//   it('forwards data, end event', done => {
-//     const spy = sinon.spy((...args: Array<{}>) => {
-//       assert.strictEqual(args.length, 3);
-//       const s = new StreamArrayParser(streamMethod);
-//       s.push({resources: [1, 2]});
-//       s.push({resources: [3, 4, 5]});
-//       s.push(null);
-//       return s;
-//     });
-//     const apiCall = createApiCallStreaming(
-//       spy,
-//       streaming.StreamType.SERVER_STREAMING,
-//       true
-//     );
-//     const s = apiCall({}, undefined);
-//     assert.strictEqual(s.readable, true);
-//     assert.strictEqual(s.writable, false);
-//     const actualResults: Array<{resources: Array<number>}> = [];
-//     s.on('data', data => {
-//       actualResults.push(data);
-//     });
-//     s.on('end', () => {
-//       assert.strictEqual(
-//         JSON.stringify(actualResults),
-//         JSON.stringify([{resources: [1, 2]}, {resources: [3, 4, 5]}])
-//       );
-//       done();
-//     });
-//   });
+it('emit error and retry three times', done => {
+  const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
+    code: 14,
+    details: 'UNAVAILABLE',
+  });
+  const secondError = Object.assign(new GoogleError('DEADLINE'), {
+    code: 4,
+    details: 'DEADLINE',
+  });
+  let counter = 0;
+  const expectedStatus = {code: 0};
+  const receivedData: string[] = [];
 
-//   it('forwards error event', done => {
-//     const spy = sinon.spy((...args: Array<{}>) => {
-//       assert.strictEqual(args.length, 3);
-//       const s = new StreamArrayParser(streamMethod);
-//       s.push({resources: [1, 2]});
-//       s.push(null);
-//       s.emit('error', new Error('test error'));
-//       return s;
-//     });
-//     const apiCall = createApiCallStreaming(
-//       spy,
-//       streaming.StreamType.SERVER_STREAMING,
-//       true
-//     );
-//     const s = apiCall({}, undefined);
-//     assert.strictEqual(s.readable, true);
-//     assert.strictEqual(s.writable, false);
-//     s.on('error', err => {
-//       assert(err instanceof Error);
-//       assert.deepStrictEqual(err.message, 'test error');
-//       done();
-//     });
-//   });
+  const spy = sinon.spy((...args: Array<{}>) => {
+    assert.strictEqual(args.length, 3);
+    const s = new PassThrough({
+      objectMode: true,
+    });
+    setImmediate(() => {
+      s.push('Hello');
+      s.push('World');
+      switch (counter) {
+        case 0:
+          s.emit('error', firstError);
+          break;
+        case 1:
+          s.emit('error', firstError);
+          break;
+        case 2:
+          s.emit('error', secondError);
+          break;
+        case 3:
+          s.push('testing');
+          s.push('retries');
+          s.emit('status', expectedStatus);
+          break;
+        default:
+          assert.deepStrictEqual(
+            receivedData.join(' '),
+            'Hello World Hello World Hello World testing retries'
+          );
+          done();
+      }
+      counter++;
+    });
+    return s;
+  });
+  const apiCall = createApiCallStreaming(
+    spy,
+    streaming.StreamType.SERVER_STREAMING
+  );
 
-//   it('cancels StreamArrayParser in the middle', done => {
-//     function schedulePush(s: StreamArrayParser, c: number) {
-//       const intervalId = setInterval(() => {
-//         s.push(c);
-//         c++;
-//       }, 10);
-//       s.on('finish', () => {
-//         clearInterval(intervalId);
-//       });
-//     }
-//     const spy = sinon.spy((...args: Array<{}>) => {
-//       assert.strictEqual(args.length, 3);
-//       const s = new StreamArrayParser(streamMethod);
-//       schedulePush(s, 0);
-//       return s;
-//     });
-//     const apiCall = createApiCallStreaming(
-//       //@ts-ignore
-//       spy,
-//       streaming.StreamType.SERVER_STREAMING,
-//       true
-//     );
-//     const s = apiCall({}, undefined);
-//     let counter = 0;
-//     const expectedCount = 5;
-//     s.on('data', data => {
-//       assert.strictEqual(data, counter);
-//       counter++;
-//       if (counter === expectedCount) {
-//         s.cancel();
-//       } else if (counter > expectedCount) {
-//         done(new Error('should not reach'));
-//       }
-//     });
-//     s.on('end', () => {
-//       done();
-//     });
-//   });
-// });
+  const s = apiCall(
+    {},
+    {
+      retry: gax.createRetryOptions([4, 14], {
+        initialRetryDelayMillis: 100,
+        retryDelayMultiplier: 1.2,
+        maxRetryDelayMillis: 1000,
+        rpcTimeoutMultiplier: 1.5,
+        maxRpcTimeoutMillis: 3000,
+        maxRetries: 3,
+      }),
+    }
+  );
+  let errorCount = 0;
+  s.on('data', data => {
+    receivedData.push(data);
+  });
+  s.on('error', err => {
+    assert(err instanceof GoogleError);
+    switch (errorCount) {
+      case 0:
+        assert.deepStrictEqual(err.message, 'UNAVAILABLE');
+        assert.strictEqual(err.code, 14);
+        break;
+      case 1:
+        assert.deepStrictEqual(err.message, 'UNAVAILABLE');
+        assert.strictEqual(err.code, 14);
+        break;
+      case 2:
+        assert.deepStrictEqual(err.message, 'DEADLINE');
+        assert.strictEqual(err.code, 4);
+        break;
+      default:
+        break;
+    }
+    errorCount++;
+  });
+});
+
+describe('REST streaming apiCall return StreamArrayParser', () => {
+  const protos_path = path.resolve(__dirname, '..', 'fixtures', 'user.proto');
+  const root = protobuf.loadSync(protos_path);
+  const UserService = root.lookupService('UserService');
+  UserService.resolveAll();
+  const streamMethod = UserService.methods['RunQuery'];
+  it('forwards data, end event', done => {
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new StreamArrayParser(streamMethod);
+      s.push({resources: [1, 2]});
+      s.push({resources: [3, 4, 5]});
+      s.push(null);
+      return s;
+    });
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      true
+    );
+    const s = apiCall({}, undefined);
+    assert.strictEqual(s.readable, true);
+    assert.strictEqual(s.writable, false);
+    const actualResults: Array<{resources: Array<number>}> = [];
+    s.on('data', data => {
+      actualResults.push(data);
+    });
+    s.on('end', () => {
+      assert.strictEqual(
+        JSON.stringify(actualResults),
+        JSON.stringify([{resources: [1, 2]}, {resources: [3, 4, 5]}])
+      );
+      done();
+    });
+  });
+
+  it('forwards error event', done => {
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new StreamArrayParser(streamMethod);
+      s.push({resources: [1, 2]});
+      s.push(null);
+      s.emit('error', new Error('test error'));
+      return s;
+    });
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      true
+    );
+    const s = apiCall({}, undefined);
+    assert.strictEqual(s.readable, true);
+    assert.strictEqual(s.writable, false);
+    s.on('error', err => {
+      assert(err instanceof Error);
+      assert.deepStrictEqual(err.message, 'test error');
+      done();
+    });
+    s.on('end', () => {
+      done();
+    });
+  });
+});

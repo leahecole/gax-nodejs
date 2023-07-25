@@ -133,6 +133,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   retry(stream: CancellableStream, retry: RetryOptions) {
+    console.log('IN RETRY');
     stream.destroy();
     const new_stream = this.apiCall!(
       this.argument!,
@@ -185,7 +186,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       throw error;
     }
 
-    if (this.retries && this.retries >= maxRetries) {
+    if (this.retries && this.retries > maxRetries) {
       const error = new GoogleError(
         'Exceeded maximum number of retries before any ' +
           'response was received'
@@ -203,8 +204,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     });
 
     stream.on('error', error => {
+      console.log('ENTERED ERROR IN STREAMHANDOFF');
       const e = GoogleError.parseGRPCStatusDetails(error);
-      console.log(retry.retryCodes);
       if (retry.retryCodes.indexOf(e!.code!) < 0) {
         const newError = new GoogleError(
           'Exception occurred in retry method that was ' +
@@ -292,12 +293,12 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       });
       this._responseHasSent = true;
     });
+
     stream.on('error', error => {
       const timeout = retry.backoffSettings.totalTimeoutMillis;
       const maxRetries = retry.backoffSettings.maxRetries!;
-      console.log(`MAX RETRIES : ${maxRetries}`);
       if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) {
-        console.log('ENTERED');
+        console.log('ENTERED ERROR IN FORWARD EVENTS');
         const e = GoogleError.parseGRPCStatusDetails(error);
         if (retry.retryCodes.indexOf(e!.code!) < 0) {
           const newError = new GoogleError(
@@ -309,7 +310,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
           this.destroy(error);
           throw error;
         } else {
-          console.log('RETRYING');
+          this.emit('error', error);
+          console.log('STARTED RETRYING IN FORWARD EVENTS');
           retryStream = this.retry(stream, retry);
           this.stream = retryStream;
           this.prevError = error;
