@@ -501,6 +501,7 @@ describe('retryable', () => {
     });
   });
 
+  // TODO(coleleah): well, is it still internal with parameter conversion?
   // maxRetries is unsupported, and intended for internal use only.
   it('errors when totalTimeoutMillis and maxRetries set', done => {
     const maxRetries = 5;

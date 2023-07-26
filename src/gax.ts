@@ -64,8 +64,6 @@ import {toLowerCamelCase} from './util';
  *   // not returning a stream, but callback is called with the paged response.
  * });
  */
- 
-
 
 /**
  * Per-call configurable settings for retrying upon transient failure.
@@ -77,13 +75,14 @@ import {toLowerCamelCase} from './util';
 export class RetryOptions {
   retryCodesOrShouldRetryFn: number[] | (() => boolean);
   backoffSettings: BackoffSettings;
-  constructor(retryCodesOrShouldRetryFn: number[] | (() => boolean), backoffSettings: BackoffSettings) {
+  constructor(
+    retryCodesOrShouldRetryFn: number[] | (() => boolean),
+    backoffSettings: BackoffSettings
+  ) {
     this.retryCodesOrShouldRetryFn = retryCodesOrShouldRetryFn;
     this.backoffSettings = backoffSettings;
   }
 }
-
-
 
 export interface RetryRequestOptions {
   objectMode?: boolean;
@@ -328,7 +327,7 @@ export class CallSettings {
  *
  */
 
-// TODO rename to reflect options not settings
+// TODO(coleleah) rename to reflect options not settings
 export function checkRetrySettings(
   options?: CallOptions,
   gaxStreamingRetries?: boolean
@@ -342,7 +341,7 @@ export function checkRetrySettings(
         options.retry !== undefined &&
         options.retryRequestOptions !== undefined
       ) {
-        //TODO: link to documentation when it exists
+        //TODO(coleleah): link to documentation when it exists
         throw new Error('Only one of retry or retryRequestOptions may be set');
       }
     } else {
@@ -355,13 +354,13 @@ export function checkRetrySettings(
         );
       }
       if (options.retryRequestOptions !== undefined) {
-        // console.log("retryrequestoptions", options.retryRequestOptions);
         // // do parameter conversion here:
         // // Retry settings
         // // TODO(coleleah): do we care about this? - noresponseRetries - should this be the same as retries? - No - after talkign to Denis, this is when there's a connectivity issue and there may not be a gRPC error code
-        // // TODO(coleleah): retries - one to one with maxRetries
         // // TODO(coleleah): objectMode - do we care about this?
-        // // TODO(coleleah): currentRetryAttempt - not sure if needed - we keep track of this internally
+        if(options.retryRequestOptions.currentRetryAttempt){
+          console.log("currentRetryAttempt override is not supported. Retry attempts are tracked internally.")
+        }
         let retryCodesOrShouldRetryFn;
 
         if (options.retryRequestOptions.shouldRetryFn) {
@@ -369,6 +368,9 @@ export function checkRetrySettings(
         }
 
         //Backoff settings
+        if (options.retryRequestOptions.retries !== null && options.retryRequestOptions !== undefined){ // don't want to just check for truthiness here in case it's 0
+          options.maxRetries = options.retryRequestOptions.retries;
+        }
         let maxRetryDelayMillis;
         let totalTimeoutMillis;
         let retryDelayMultiplier;

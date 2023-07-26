@@ -603,12 +603,10 @@ describe('streaming', () => {
           console.log(settings.retry);
           try {
             // Retry settings
-            // TODO: do we care about this? - noresponseRetries
-            // TODO: retries - one to one with maxRetries
+            // TODO: do we care about this? - noresponseRetries - yes
+            // TODO: retries - one to one with maxRetries - this should be undefined if timeout is defined, I think
             // TODO: objectMode - do we care about this? I think yes, but we may want to suggest folks deal with it elsewhere
-            // TODO: currentRetryAttempt - not sure if needed
-            // TODO: this will take a bit - shouldRetryFn
-
+ß
             // //Backoff settings
             assert(settings.retry);
             // maxRetryDelay - this is in seconds, need to convert to milliseconds
@@ -626,6 +624,7 @@ describe('streaming', () => {
               settings.retry?.backoffSettings.totalTimeoutMillis,
               650000
             );
+            assert(typeof settings.retry.retryCodesOrShouldRetryFn === 'function')
             assert(settings.retry != new gax.CallSettings().retry);
             console.log('after asserts');
             done();
