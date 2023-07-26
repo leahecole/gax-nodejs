@@ -37,7 +37,7 @@ export interface ClientOptions
   clientConfig?: gax.ClientConfig;
   fallback?: boolean | 'rest' | 'proto';
   apiEndpoint?: string;
-  newRetry?: boolean
+  newRetry?: boolean;
 }
 
 export interface Descriptors {

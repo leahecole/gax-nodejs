@@ -107,7 +107,11 @@ export function retryable(
           return;
         }
         canceller = null;
-        if (retry.retryCodesOrShouldRetryFn !== undefined && retry.retryCodesOrShouldRetryFn instanceof Array && retry.retryCodesOrShouldRetryFn.indexOf(err!.code!) < 0) {
+        if (
+          retry.retryCodesOrShouldRetryFn !== undefined &&
+          retry.retryCodesOrShouldRetryFn instanceof Array &&
+          retry.retryCodesOrShouldRetryFn.indexOf(err!.code!) < 0
+        ) {
           err.note =
             'Exception occurred in retry method that was ' +
             'not classified as transient';
@@ -143,8 +147,6 @@ export function retryable(
     } else {
       repeat();
     }
-
-
 
     return {
       cancel() {

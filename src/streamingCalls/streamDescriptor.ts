@@ -28,9 +28,13 @@ export class StreamDescriptor implements Descriptor {
   type: StreamType;
   streaming: boolean; // needed for browser support
   rest?: boolean;
-  gaxStreamingRetries?: boolean
+  gaxStreamingRetries?: boolean;
 
-  constructor(streamType: StreamType, rest?: boolean, gaxStreamingRetries?: boolean) {
+  constructor(
+    streamType: StreamType,
+    rest?: boolean,
+    gaxStreamingRetries?: boolean
+  ) {
     this.type = streamType;
     this.streaming = true;
     this.rest = rest;

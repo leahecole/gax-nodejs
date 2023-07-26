@@ -48,7 +48,7 @@ export class StreamingApiCaller implements APICaller {
       this.descriptor.type,
       callback,
       this.descriptor.rest,
-      this.descriptor.gaxStreamingRetries,
+      this.descriptor.gaxStreamingRetries
     );
   }
 
@@ -86,7 +86,12 @@ export class StreamingApiCaller implements APICaller {
     settings: CallSettings,
     stream: StreamProxy
   ) {
-    stream.setStream(apiCall, argument, settings.retryRequestOptions, settings.retry!);
+    stream.setStream(
+      apiCall,
+      argument,
+      settings.retryRequestOptions,
+      settings.retry!
+    );
   }
 
   fail(stream: CancellableStream, err: Error) {

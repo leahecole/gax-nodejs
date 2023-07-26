@@ -21,7 +21,7 @@ import {
   SimpleCallbackFunction,
   UnaryCall,
 } from '../apitypes';
-import { StreamProxy } from '../streamingCalls/streaming';
+import {StreamProxy} from '../streamingCalls/streaming';
 
 /**
  * Updates func so that it gets called with the timeout as its final arg.
@@ -54,9 +54,6 @@ export function addTimeoutArg(
       ? otherArgs.metadataBuilder(abTests, otherArgs.headers || {})
       : null;
     return (func as UnaryCall)(argument, metadata!, options, callback);
-
-
-
   };
 }
 

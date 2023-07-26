@@ -139,7 +139,8 @@ describe('createApiCall', () => {
       done();
     });
   });
-
+  //TODO(coleleah): make version with gaxStreamingRetries enabled
+  //TODO(coleleah): override just shoudlRetryFn)
   it('override just custom retry.retrycodes', done => {
     const initialRetryCodes = [1];
     const overrideRetryCodes = [1, 2, 3];

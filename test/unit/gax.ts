@@ -72,14 +72,17 @@ const RETRY_DICT = {
   code_c: 3,
 };
 
-//TODO (coleleah): double check this logic, add additional tests 
+//TODO (coleleah): double check this logic, add additional tests
 function expectRetryOptions(obj: gax.RetryOptions) {
   assert.ok(obj instanceof Object);
   ['retryCodes', 'backoffSettings'].forEach(k =>
     // eslint-disable-next-line no-prototype-builtins
     assert.ok(obj.hasOwnProperty(k))
   );
-  assert.ok(obj.retryCodesOrShouldRetryFn instanceof Array || obj.retryCodesOrShouldRetryFn instanceof Function);
+  assert.ok(
+    obj.retryCodesOrShouldRetryFn instanceof Array ||
+      obj.retryCodesOrShouldRetryFn instanceof Function
+  );
   expectBackoffSettings(obj.backoffSettings);
 }
 
