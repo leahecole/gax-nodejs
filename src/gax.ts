@@ -87,7 +87,8 @@ export interface RetryRequestOptions {
   retries?: number;
   noResponseRetries?: number;
   currentRetryAttempt?: number;
-  shouldRetryFn?: () => boolean;
+  shouldRetryFn?: (response: any) => boolean;
+  getResumptionRequestFn?: (response: any) => any;
 }
 
 /**

@@ -1,13 +1,15 @@
 'use strict';
 
+import {GoogleError} from './fallback';
+
 const {PassThrough} = require('stream');
 const extend = require('extend');
 
 const DEFAULTS = {
   /*
     Max # of retries
-  */  
-    maxRetries: 2,
+  */
+  maxRetries: 2,
 
   /*
     The maximum time to delay in seconds. If retryDelayMultiplier results in a
@@ -32,7 +34,7 @@ const DEFAULTS = {
   totalTimeoutMillis: 600000,
 
   /*
-    The initial delay time, in milliseconds, between the completion of the first 
+    The initial delay time, in milliseconds, between the completion of the first
     failed request and the initiation of the first retrying request.
   */
   initialRetryDelayMillis: 60,
@@ -43,7 +45,7 @@ const DEFAULTS = {
   initialRpcTimeoutMillis: 60,
 
   /*
-    Maximum timeout in milliseconds for a request. 
+    Maximum timeout in milliseconds for a request.
     When this value is reached, rpcTimeoutMulitplier will no
     longer be used to increase the timeout.
   */
@@ -56,17 +58,31 @@ const DEFAULTS = {
   rpcTimeoutMultiplier: 2,
 
   /*
-    The number of retries that have occured. 
+    The number of retries that have occured.
   */
   retries: 0,
+
+  shouldRetryFn: function (response: any) {
+    return undefined;
+  },
+
+  resumeRequestFn: function (response: any) {
+    return undefined;
+  },
 };
 
-export function streamingRetryRequest(requestOpts: any= null, opts: any=null, callback: any=null) {
+export function streamingRetryRequest(
+  requestOpts: any = null,
+  opts: any = null,
+  callback: any = null
+) {
   const streamMode = typeof arguments[arguments.length - 1] !== 'function';
 
   if (typeof opts === 'function') {
     callback = opts;
   }
+
+  opts = extend({}, DEFAULTS, opts);
 
   if (typeof opts.request === 'undefined') {
     try {
@@ -84,7 +100,7 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
   let requestStream: any;
   let delayStream: any;
 
-  let activeRequest: { abort: () => void; };
+  let activeRequest: {abort: () => void};
   const retryRequest = {
     abort: function () {
       if (activeRequest && activeRequest.abort) {
@@ -122,7 +138,6 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
   }
 
   function makeRequest() {
-
     if (streamMode) {
       streamResponseHandled = false;
 
@@ -168,14 +183,13 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
     setTimeout(makeRequest, 100);
   }
 
-
-  function onResponse(err:any , response: any=null, body:any=null) {
+  function onResponse(err: any, response: any = null, body: any = null) {
     // An error such as DNS resolution.
     if (err) {
       numNoResponseAttempts++;
 
       if (numNoResponseAttempts <= opts.maxRetries) {
-        retryAfterDelay()
+        retryAfterDelay();
       } else {
         if (streamMode) {
           retryStream.emit('error', err);
@@ -200,4 +214,3 @@ export function streamingRetryRequest(requestOpts: any= null, opts: any=null, ca
     }
   }
 }
-
