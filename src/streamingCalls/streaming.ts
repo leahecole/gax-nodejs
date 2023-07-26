@@ -137,10 +137,19 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     retry: RetryOptions,
     retryRequestOptions: RetryRequestOptions
   ) {
-    console.log('IN RETRY');
+    let retryArgument = this.argument!;
+    if (
+      typeof retryRequestOptions.getResumptionRequestFn! === 'function' &&
+      retryRequestOptions.getResumptionRequestFn!(this.argument)
+    ) {
+      retryArgument = retryRequestOptions.getResumptionRequestFn!(
+        this.argument
+      );
+    }
+
     stream.destroy();
     const new_stream = this.apiCall!(
-      this.argument!,
+      retryArgument,
       this._callback
     ) as CancellableStream;
     this.stream = new_stream;
@@ -213,8 +222,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     });
 
     stream.on('error', error => {
-      console.log('ENTERED ERROR IN STREAMHANDOFF');
-
       const e = GoogleError.parseGRPCStatusDetails(error);
       let shouldRetry = this.defaultShouldRetry(e!, retry);
 
@@ -273,7 +280,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    *   algorithm.
    */
   forwardEvents(stream: Stream) {
-    console.log('OLD FORWARD EVENTS');
     const eventsToForward = ['metadata', 'response', 'status'];
     eventsToForward.forEach(event => {
       stream.on(event, this.emit.bind(this, event));
@@ -338,7 +344,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     eventsToForward.forEach(event => {
       stream.on(event, this.emit.bind(this, event));
     });
-    console.log('FORWARD EVENTS');
     // gRPC is guaranteed emit the 'status' event but not 'metadata', and 'status' is the last event to emit.
     // Emit the 'response' event if stream has no 'metadata' event.
     // This avoids the stream swallowing the other events, such as 'end'.
@@ -374,16 +379,16 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       const timeout = retry.backoffSettings.totalTimeoutMillis;
       const maxRetries = retry.backoffSettings.maxRetries!;
       if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) {
-        console.log('ENTERED ERROR IN FORWARD EVENTS');
         const e = GoogleError.parseGRPCStatusDetails(error);
         let shouldRetry = this.defaultShouldRetry(e!, retry);
-        if (retryRequestOptions.shouldRetryFn) {
-          shouldRetry = retryRequestOptions.shouldRetryFn(e!);
+        if (
+          typeof retryRequestOptions.shouldRetryFn! === 'function' &&
+          retryRequestOptions.shouldRetryFn!(e!)
+        ) {
+          shouldRetry = retryRequestOptions.shouldRetryFn!(e!);
         }
 
         if (shouldRetry) {
-          this.emit('error', error);
-          console.log('STARTED RETRYING IN FORWARD EVENTS');
           retryStream = this.retry(stream, retry, retryRequestOptions);
           this.stream = retryStream;
           this.prevError = error;
@@ -440,7 +445,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
 
     if (this.type === StreamType.SERVER_STREAMING) {
       if (this.rest) {
-        console.log('In Rest');
         const stream = apiCall(argument, this._callback) as CancellableStream;
         this.stream = stream;
         this.setReadable(stream);

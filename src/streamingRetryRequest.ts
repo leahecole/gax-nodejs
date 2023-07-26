@@ -66,7 +66,7 @@ const DEFAULTS = {
     return undefined;
   },
 
-  resumeRequestFn: function (response: any) {
+  getResumptionRequestFn: function (response: any) {
     return undefined;
   },
 };

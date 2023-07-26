@@ -206,7 +206,7 @@ function getStreamingSequenceRequest() {
 
   const streamingSequence =
     new protos.google.showcase.v1beta1.StreamingSequence();
-  streamingSequence.responses = [firstResponse, secondResponse, fourthResponse];
+  streamingSequence.responses = [firstResponse, fourthResponse];
   streamingSequence.content =
     'This is testing the brand new and shiny StreamingSequence server 3';
   request.streamingSequence = streamingSequence;
