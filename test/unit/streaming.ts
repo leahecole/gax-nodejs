@@ -606,7 +606,7 @@ describe('streaming', () => {
             // TODO: do we care about this? - noresponseRetries - yes
             // TODO: retries - one to one with maxRetries - this should be undefined if timeout is defined, I think
             // TODO: objectMode - do we care about this? I think yes, but we may want to suggest folks deal with it elsewhere
-ß
+
             // //Backoff settings
             assert(settings.retry);
             // maxRetryDelay - this is in seconds, need to convert to milliseconds
