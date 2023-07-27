@@ -337,7 +337,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   defaultShouldRetry(error: GoogleError, retry: RetryOptions) {
-    if (retry.retryCodes.indexOf(error!.code!) < 0) { //TODO(coleleah): retryCodesOrShouldRetryFn
+    if (retry.retryCodesOrShouldRetryFn instanceof Array && retry.retryCodesOrShouldRetryFn.indexOf(error!.code!) < 0) {
       return false;
     }
     return true;
