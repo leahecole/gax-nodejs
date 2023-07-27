@@ -300,7 +300,7 @@ async function testCreateSequence(client: SequenceServiceClient) {
     const numResponses = 3;
     attemptStream = await multipleSequenceAttempts(numResponses);
   }
-
+}
 
 function retryStreamingRequest() {
   const request = new protos.google.showcase.v1beta1.CreateSequenceRequest();
@@ -352,11 +352,11 @@ async function testStreaming(client: SequenceServiceClient) {
   const retryOptions = new RetryOptions([], backoffSettings);
 
   const settings = {
-    retry: retryOptions,
-    retryRequestOptions: {
-      shouldRetryFn: (error: GoogleError) => {
+    retry: {
+      retryCodesOrShouldRetryFn: (error: GoogleError) => {
         return [4, 14].includes(error.code!);
       },
+      backoffSettings: backoffSettings,
     },
   };
 

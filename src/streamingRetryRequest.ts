@@ -62,9 +62,11 @@ const DEFAULTS = {
   */
   retries: 0,
 
-  shouldRetryFn: function (response: any) {
-    return undefined;
-  },
+  retryCodesOrShouldRetryFn:
+    [14] ||
+    function (response: any) {
+      return undefined;
+    },
 
   getResumptionRequestFn: function (response: any) {
     return undefined;

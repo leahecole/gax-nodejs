@@ -29,7 +29,6 @@ import {GoogleError} from '../googleError';
 import {streamingRetryRequest} from '../streamingRetryRequest';
 import {Status} from '../status';
 
-
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const duplexify: DuplexifyConstructor = require('duplexify');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -133,7 +132,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     }
   }
 
-
   retry(
     stream: CancellableStream,
     retry: RetryOptions,
@@ -189,7 +187,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     let now = new Date();
     let deadline = 0;
 
-
     if (retry.backoffSettings.totalTimeoutMillis) {
       deadline = now.getTime() + retry.backoffSettings.totalTimeoutMillis;
     }
@@ -232,15 +229,10 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     });
 
     stream.on('error', error => {
-
       const e = GoogleError.parseGRPCStatusDetails(error);
       let shouldRetry = this.defaultShouldRetry(e!, retry);
-      //TODO(coleleah): retryCodesOrShouldRetryFn
-      if (
-        typeof retryRequestOptions.shouldRetryFn! === 'function' &&
-        retryRequestOptions.shouldRetryFn!(e!)
-      ) {
-        shouldRetry = retryRequestOptions.shouldRetryFn!(e!);
+      if (typeof retry.retryCodesOrShouldRetryFn! === 'function') {
+        shouldRetry = retry.retryCodesOrShouldRetryFn!(e!);
       }
 
       if (shouldRetry) {
@@ -254,7 +246,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
           const newDeadline = deadline ? deadline - now.getTime() : 0;
           timeout = Math.min(timeoutCal, rpcTimeout, newDeadline);
         }, toSleep);
-
       } else {
         const newError = new GoogleError(
           'Exception occurred in retry method that was ' +
@@ -337,7 +328,10 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   defaultShouldRetry(error: GoogleError, retry: RetryOptions) {
-    if (retry.retryCodes.indexOf(error!.code!) < 0) { //TODO(coleleah): retryCodesOrShouldRetryFn
+    if (
+      Array.isArray(retry.retryCodesOrShouldRetryFn) &&
+      retry.retryCodesOrShouldRetryFn.indexOf(error!.code!) < 0
+    ) {
       return false;
     }
     return true;
@@ -397,11 +391,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) {
         const e = GoogleError.parseGRPCStatusDetails(error);
         let shouldRetry = this.defaultShouldRetry(e!, retry);
-        if ( //TODO(coleleah): shoudlRetryFnorretrycodes
-          typeof retryRequestOptions.shouldRetryFn! === 'function' &&
-          retryRequestOptions.shouldRetryFn!(e!)
-        ) {
-          shouldRetry = retryRequestOptions.shouldRetryFn!(e!);
+        if (typeof retry.retryCodesOrShouldRetryFn! === 'function') {
+          shouldRetry = retry.retryCodesOrShouldRetryFn!(e!);
         }
 
         if (shouldRetry) {

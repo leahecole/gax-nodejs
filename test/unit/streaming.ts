@@ -694,10 +694,14 @@ describe('streaming', () => {
       streaming.StreamType.SERVER_STREAMING
     );
 
+    function retryCodesOrShouldRetryFn(error: GoogleError) {
+      return [14].includes(error.code!);
+    }
+
     const s = apiCall(
       {},
       {
-        retry: gax.createRetryOptions([], {
+        retry: gax.createRetryOptions(retryCodesOrShouldRetryFn, {
           initialRetryDelayMillis: 100,
           retryDelayMultiplier: 1.2,
           maxRetryDelayMillis: 1000,
@@ -705,11 +709,6 @@ describe('streaming', () => {
           maxRpcTimeoutMillis: 3000,
           maxRetries: 1,
         }),
-        retryRequestOptions: {
-          shouldRetryFn: (error: GoogleError) => {
-            return [14].includes(error.code!);
-          },
-        },
       }
     );
     let errorCount = 0;
@@ -827,7 +826,7 @@ it('emit error and retry three times', done => {
     it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
       sinon
         .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-        .callsFake((stream, retry): any => {
+        .callsFake((stream): any => {
           assert(stream instanceof internal.Stream);
           done();
         });
@@ -963,7 +962,9 @@ it('emit error and retry three times', done => {
               settings.retry?.backoffSettings.totalTimeoutMillis,
               650000
             );
-            assert(typeof settings.retry.retryCodesOrShouldRetryFn === 'function')
+            assert(
+              typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
+            );
             assert(settings.retry != new gax.CallSettings().retry);
             console.log('after asserts');
             done();
