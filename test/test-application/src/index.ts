@@ -91,6 +91,7 @@ async function testShowcase() {
 
   // assuming gRPC server is started locally
   // await testCreateSequence(grpcSequenceClient);
+
   await testStreaming(grpcSequenceClientWithNewRetry).then(async () => {
     // console.log("Hi")
     // grpcSequenceClientWithNewRetry.initialize()
@@ -299,7 +300,7 @@ async function testCreateSequence(client: SequenceServiceClient) {
     const numResponses = 3;
     attemptStream = await multipleSequenceAttempts(numResponses);
   }
-}
+
 
 function retryStreamingRequest() {
   const request = new protos.google.showcase.v1beta1.CreateSequenceRequest();

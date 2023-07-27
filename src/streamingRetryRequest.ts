@@ -111,7 +111,7 @@ export function streamingRetryRequest(
 
   if (streamMode) {
     retryStream = new PassThrough({objectMode: opts.objectMode});
-    retryStream.abort = resetStreams;
+    // retryStream.abort = resetStreams;
   }
 
   makeRequest();
@@ -176,10 +176,6 @@ export function streamingRetryRequest(
   }
 
   function retryAfterDelay() {
-    if (streamMode) {
-      resetStreams();
-    }
-
     setTimeout(makeRequest, 100);
   }
 
@@ -193,7 +189,6 @@ export function streamingRetryRequest(
       } else {
         if (streamMode) {
           retryStream.emit('error', err);
-          retryStream.end();
         } else {
           callback(err, response, body);
         }

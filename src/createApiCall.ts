@@ -28,7 +28,7 @@ import {
   SimpleCallbackFunction,
 } from './apitypes';
 import {Descriptor} from './descriptor';
-import {CallOptions, CallSettings} from './gax';
+import {CallOptions, CallSettings, checkRetrySettings} from './gax';
 import {retryable} from './normalCalls/retries';
 import {addTimeoutArg} from './normalCalls/timeout';
 import {StreamingApiCaller} from './streamingCalls/streamingApiCaller';
@@ -63,7 +63,6 @@ export function createApiCall(
   // function. Currently client librares are only calling this method with a
   // promise, but it will change.
   const funcPromise = typeof func === 'function' ? Promise.resolve(func) : func;
-
   // the following apiCaller will be used for all calls of this function...
   const apiCaller = createAPICaller(settings, descriptor);
 
@@ -72,9 +71,18 @@ export function createApiCall(
     callOptions?: CallOptions,
     callback?: APICallback
   ) => {
-    const thisSettings = settings.merge(callOptions);
-
     let currentApiCaller = apiCaller;
+    const gaxStreamingRetries = (currentApiCaller as StreamingApiCaller)
+      .descriptor?.gaxStreamingRetries;
+
+    // If Gax streaming retries are enabled, check settings passed at call time and convert parameters if needed
+    const thisSettingsTemp = checkRetrySettings(
+      callOptions,
+      gaxStreamingRetries
+    );
+    const thisSettings = settings.merge(thisSettingsTemp);
+    // console.log("settings have been merged", thisSettings)
+
     // special case: if bundling is disabled for this one call,
     // use default API caller instead
     if (settings.isBundling && !thisSettings.isBundling) {
@@ -89,12 +97,14 @@ export function createApiCall(
 
         const streaming = (currentApiCaller as StreamingApiCaller).descriptor
           ?.streaming;
+
         const retry = thisSettings.retry;
         if (
           !streaming &&
           retry &&
-          retry.retryCodes &&
-          retry.retryCodes.length > 0
+          retry.retryCodesOrShouldRetryFn &&
+          retry.retryCodesOrShouldRetryFn instanceof Array &&
+          retry.retryCodesOrShouldRetryFn.length > 0
         ) {
           retry.backoffSettings.initialRpcTimeoutMillis =
             retry.backoffSettings.initialRpcTimeoutMillis ||

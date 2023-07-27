@@ -139,13 +139,14 @@ describe('createApiCall', () => {
       done();
     });
   });
-
+  //TODO(coleleah): make version with gaxStreamingRetries enabled
+  //TODO(coleleah): override just shoudlRetryFn)
   it('override just custom retry.retrycodes', done => {
     const initialRetryCodes = [1];
     const overrideRetryCodes = [1, 2, 3];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sinon.stub(retries, 'retryable').callsFake((func, retry): any => {
-      assert.strictEqual(retry.retryCodes, overrideRetryCodes);
+      assert.strictEqual(retry.retryCodesOrShouldRetryFn, overrideRetryCodes);
       return func;
     });
 
@@ -170,7 +171,7 @@ describe('createApiCall', () => {
       {},
       {
         retry: {
-          retryCodes: overrideRetryCodes,
+          retryCodesOrShouldRetryFn: overrideRetryCodes,
         },
       }
     );
@@ -500,6 +501,7 @@ describe('retryable', () => {
     });
   });
 
+  // TODO(coleleah): well, is it still internal with parameter conversion?
   // maxRetries is unsupported, and intended for internal use only.
   it('errors when totalTimeoutMillis and maxRetries set', done => {
     const maxRetries = 5;
