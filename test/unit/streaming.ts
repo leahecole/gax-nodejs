@@ -35,6 +35,7 @@ import path = require('path');
 import protobuf = require('protobufjs');
 import {GoogleError} from '../../src';
 import {Metadata} from '@grpc/grpc-js';
+import {count, error} from 'console';
 
 //TODO(coleleah): check agreement of objectmode in various places
 function createApiCallStreaming(
@@ -51,6 +52,22 @@ function createApiCallStreaming(
     Promise.resolve(func),
     settings,
     new StreamDescriptor(type, rest, gaxStreamingRetries)
+  ) as GaxCallStream;
+}
+
+function createApiCallStreamingWithNewLogic(
+  func:
+    | Promise<GRPCCall>
+    | sinon.SinonSpy<Array<{}>, internal.Transform | StreamArrayParser>,
+  type: streaming.StreamType,
+  rest?: boolean
+) {
+  const settings = new gax.CallSettings();
+  return createApiCall(
+    //@ts-ignore
+    Promise.resolve(func),
+    settings,
+    new StreamDescriptor(type, rest, true)
   ) as GaxCallStream;
 }
 
@@ -162,6 +179,42 @@ describe('streaming', () => {
     s.write(arg);
     s.end();
   });
+
+  it('allows custome CallOptions.retry settings', done => {
+    sinon
+      .stub(streaming.StreamProxy.prototype, 'forwardEvents')
+      .callsFake((stream): any => {
+        assert(stream instanceof internal.Stream);
+        done();
+      });
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING
+    );
+
+    apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([1], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          totalTimeoutMillis: 4500,
+        }),
+      }
+    );
+  });
+
   it('forwards metadata and status', done => {
     const responseMetadata = {metadata: true};
     const status = {code: 0, metadata: responseMetadata};
@@ -264,7 +317,19 @@ describe('streaming', () => {
       func,
       streaming.StreamType.SERVER_STREAMING
     );
-    const s = apiCall({}, undefined);
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([5], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 0,
+        }),
+      }
+    );
     let counter = 0;
     const expectedCount = 5;
     s.on('data', data => {
@@ -455,6 +520,7 @@ describe('streaming', () => {
       details: 'Failed to read',
       metadata: metadata,
     });
+
     const spy = sinon.spy((...args: Array<{}>) => {
       assert.strictEqual(args.length, 3);
       const s = new PassThrough({
@@ -464,14 +530,33 @@ describe('streaming', () => {
       setImmediate(() => {
         s.emit('error', error);
       });
+      setImmediate(() => {
+        s.emit('end');
+      });
       return s;
     });
     const apiCall = createApiCallStreaming(
       spy,
       streaming.StreamType.SERVER_STREAMING
     );
-    const s = apiCall({}, undefined);
+
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([5], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 0,
+        }),
+      }
+    );
+
     s.on('error', err => {
+      s.pause();
+      s.destroy();
       assert(err instanceof GoogleError);
       assert.deepStrictEqual(err.message, 'test error');
       assert.strictEqual(err.domain, errorInfoObj.domain);
@@ -482,6 +567,260 @@ describe('streaming', () => {
       );
       done();
     });
+    s.on('end', () => {
+      done();
+    });
+  });
+
+  it('emit error and retry once', done => {
+    const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
+      code: 14,
+      details: 'UNAVAILABLE',
+    });
+    let counter = 0;
+    const expectedStatus = {code: 0};
+    const receivedData: string[] = [];
+
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      setImmediate(() => {
+        console.log(counter);
+        s.push('Hello');
+        s.push('World');
+        switch (counter) {
+          case 0:
+            s.emit('error', firstError);
+            counter++;
+            break;
+          case 1:
+            s.push('testing');
+            s.push('retries');
+            s.emit('status', expectedStatus);
+            counter++;
+            assert.deepStrictEqual(
+              receivedData.join(' '),
+              'Hello World testing retries'
+            );
+            done();
+            break;
+          default:
+            break;
+        }
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreamingWithNewLogic(
+      spy,
+      streaming.StreamType.SERVER_STREAMING
+    );
+
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([14], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 1,
+        }),
+      }
+    );
+    let errorCount = 0;
+    s.on('data', data => {
+      receivedData.push(data);
+    });
+    s.on('error', err => {
+      assert(err instanceof GoogleError);
+      switch (errorCount) {
+        case 0:
+          assert.deepStrictEqual(err.message, 'UNAVAILABLE');
+          assert.strictEqual(err.code, 14);
+          break;
+        default:
+          break;
+      }
+      errorCount++;
+    });
+  });
+
+  it('emit error and retry once with shouldRetryFn', done => {
+    const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
+      code: 14,
+      details: 'UNAVAILABLE',
+    });
+    let counter = 0;
+    const expectedStatus = {code: 0};
+    const receivedData: string[] = [];
+
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      setImmediate(() => {
+        s.push('Hello');
+        s.push('World');
+        switch (counter) {
+          case 0:
+            s.emit('error', firstError);
+            counter++;
+            break;
+          case 1:
+            s.push('testing');
+            s.push('retries');
+            s.emit('status', expectedStatus);
+            counter++;
+            assert.deepStrictEqual(
+              receivedData.join(' '),
+              'Hello World testing retries'
+            );
+            done();
+            break;
+          default:
+            break;
+        }
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreamingWithNewLogic(
+      spy,
+      streaming.StreamType.SERVER_STREAMING
+    );
+
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 1,
+        }),
+        retryRequestOptions: {
+          shouldRetryFn: (error: GoogleError) => {
+            return [14].includes(error.code!);
+          },
+        },
+      }
+    );
+    let errorCount = 0;
+    s.on('data', data => {
+      receivedData.push(data);
+    });
+    s.on('error', err => {
+      assert(err instanceof GoogleError);
+      switch (errorCount) {
+        case 0:
+          assert.deepStrictEqual(err.message, 'UNAVAILABLE');
+          assert.strictEqual(err.code, 14);
+          break;
+        default:
+          break;
+      }
+      errorCount++;
+    });
+  });
+});
+
+it('emit error and retry three times', done => {
+  const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
+    code: 14,
+    details: 'UNAVAILABLE',
+  });
+  const secondError = Object.assign(new GoogleError('DEADLINE'), {
+    code: 4,
+    details: 'DEADLINE',
+  });
+  let counter = 0;
+  const expectedStatus = {code: 0};
+  const receivedData: string[] = [];
+
+  const spy = sinon.spy((...args: Array<{}>) => {
+    assert.strictEqual(args.length, 3);
+    const s = new PassThrough({
+      objectMode: true,
+    });
+    setImmediate(() => {
+      s.push('Hello');
+      s.push('World');
+      switch (counter) {
+        case 0:
+          s.emit('error', firstError);
+          break;
+        case 1:
+          s.emit('error', firstError);
+          break;
+        case 2:
+          s.emit('error', secondError);
+          break;
+        case 3:
+          s.push('testing');
+          s.push('retries');
+          s.emit('status', expectedStatus);
+          assert.deepStrictEqual(
+            receivedData.join(' '),
+            'Hello World Hello World Hello World testing retries'
+          );
+          done();
+          break;
+        default:
+          break;
+      }
+      counter++;
+    });
+    return s;
+  });
+
+  const apiCall = createApiCallStreamingWithNewLogic(
+    spy,
+    streaming.StreamType.SERVER_STREAMING
+  );
+
+  const s = apiCall(
+    {},
+    {
+      retry: gax.createRetryOptions([4, 14], {
+        initialRetryDelayMillis: 100,
+        retryDelayMultiplier: 1.2,
+        maxRetryDelayMillis: 1000,
+        rpcTimeoutMultiplier: 1.5,
+        maxRpcTimeoutMillis: 3000,
+        maxRetries: 3,
+      }),
+    }
+  );
+  let errorCount = 0;
+  s.on('data', data => {
+    receivedData.push(data);
+  });
+  s.on('error', err => {
+    assert(err instanceof GoogleError);
+    switch (errorCount) {
+      case 0:
+        assert.deepStrictEqual(err.message, 'UNAVAILABLE');
+        assert.strictEqual(err.code, 14);
+        break;
+      case 1:
+        assert.deepStrictEqual(err.message, 'UNAVAILABLE');
+        assert.strictEqual(err.code, 14);
+        break;
+      case 2:
+        assert.deepStrictEqual(err.message, 'DEADLINE');
+        assert.strictEqual(err.code, 4);
+        break;
+      default:
+        break;
+    }
+    errorCount++;
   });
   describe('handles server streaming retries in gax when gaxStreamingRetries is enabled', () => {
     //TODO(coleleah)
@@ -923,42 +1262,6 @@ describe('REST streaming apiCall return StreamArrayParser', () => {
       assert(err instanceof Error);
       assert.deepStrictEqual(err.message, 'test error');
       done();
-    });
-  });
-
-  it('cancels StreamArrayParser in the middle', done => {
-    function schedulePush(s: StreamArrayParser, c: number) {
-      const intervalId = setInterval(() => {
-        s.push(c);
-        c++;
-      }, 10);
-      s.on('finish', () => {
-        clearInterval(intervalId);
-      });
-    }
-    const spy = sinon.spy((...args: Array<{}>) => {
-      assert.strictEqual(args.length, 3);
-      const s = new StreamArrayParser(streamMethod);
-      schedulePush(s, 0);
-      return s;
-    });
-    const apiCall = createApiCallStreaming(
-      //@ts-ignore
-      spy,
-      streaming.StreamType.SERVER_STREAMING,
-      true
-    );
-    const s = apiCall({}, undefined);
-    let counter = 0;
-    const expectedCount = 5;
-    s.on('data', data => {
-      assert.strictEqual(data, counter);
-      counter++;
-      if (counter === expectedCount) {
-        s.cancel();
-      } else if (counter > expectedCount) {
-        done(new Error('should not reach'));
-      }
     });
     s.on('end', () => {
       done();

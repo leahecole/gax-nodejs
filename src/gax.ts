@@ -95,6 +95,7 @@ export interface RetryRequestOptions {
   maxRetryDelay?: number;
   retryDelayMultiplier?: number;
   totalTimeout?: number;
+  getResumptionRequestFn?: (response: any) => any;
 }
 
 /**

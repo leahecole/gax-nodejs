@@ -1,5 +1,7 @@
 'use strict';
 
+import {GoogleError} from './fallback';
+
 const {PassThrough} = require('stream');
 const extend = require('extend');
 
@@ -59,6 +61,14 @@ const DEFAULTS = {
     The number of retries that have occured.
   */
   retries: 0,
+
+  shouldRetryFn: function (response: any) {
+    return undefined;
+  },
+
+  getResumptionRequestFn: function (response: any) {
+    return undefined;
+  },
 };
 
 export function streamingRetryRequest(
@@ -71,6 +81,8 @@ export function streamingRetryRequest(
   if (typeof opts === 'function') {
     callback = opts;
   }
+
+  opts = extend({}, DEFAULTS, opts);
 
   if (typeof opts.request === 'undefined') {
     try {
