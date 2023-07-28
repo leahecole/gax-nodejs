@@ -147,7 +147,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       );
     }
 
-    stream.destroy();
+    this.resetStreams(stream);
 
     const new_stream = this.apiCall!(
       retryArgument,
@@ -173,7 +173,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     deadline: number,
     maxRetries: number,
     totalTimeoutMillis: number
-  ): Boolean {
+  ): void {
     const now = new Date();
 
     if (
@@ -204,7 +204,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       this.destroy(error);
       throw error;
     }
-    return true;
   }
 
   /**
