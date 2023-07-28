@@ -87,15 +87,11 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   private _responseHasSent: boolean;
   rest?: boolean;
   new_retry?: boolean;
-  retried?: number;
   apiCall?: SimpleCallbackFunction;
   argument?: {};
   retryRequestOptions?: RetryRequestOptions;
-  errorSaw?: boolean = false;
-  prevError?: Error;
   prevDeadline?: number;
   retries?: number = 0;
-  inRetryLoop?: boolean = false;
   /**
    * StreamProxy is a proxy to gRPC-streaming method.
    *
@@ -121,7 +117,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     this._responseHasSent = false;
     this.rest = rest;
     this.new_retry = new_retry;
-    this.retried = 0;
   }
 
   cancel() {
@@ -428,8 +423,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         if (shouldRetry) {
           retryStream = this.retry(stream, retry, retryRequestOptions); //TODO(coleleah): remove retryrequestOptions
           this.stream = retryStream;
-          this.prevError = error;
-          this.errorSaw = true;
           return retryStream;
         } else {
           const newError = new GoogleError(
