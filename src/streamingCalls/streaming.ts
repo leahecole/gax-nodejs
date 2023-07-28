@@ -167,30 +167,14 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   /**
-   * Add Comments
+   * TODO(galzahavi): Add Comments
    */
-
-  //TODO(coleleah): refactor to remove retryRequestOptions and add retryCodesOrShouldRetryFn
-  streamHandoffHelper(
-    stream: CancellableStream,
-    retry: RetryOptions,
-    retryRequestOptions: RetryRequestOptions
-  ): CancellableStream | undefined {
-    let retryStream = this.stream;
-    const delayMult = retry.backoffSettings.retryDelayMultiplier;
-    const maxDelay = retry.backoffSettings.maxRetryDelayMillis;
-    const timeoutMult = retry.backoffSettings.rpcTimeoutMultiplier;
-    const maxTimeout = retry.backoffSettings.maxRpcTimeoutMillis;
-
-    let delay = retry.backoffSettings.initialRetryDelayMillis;
-    let timeout = retry.backoffSettings.initialRpcTimeoutMillis;
-    let now = new Date();
-    let deadline = 0;
-
-    if (retry.backoffSettings.totalTimeoutMillis) {
-      deadline = now.getTime() + retry.backoffSettings.totalTimeoutMillis;
-    }
-    const maxRetries = retry.backoffSettings.maxRetries!; //TODO(coleleah): check this being in backoff settings - might be call options
+  timeoutAndMaxRetryCheck(
+    deadline: number,
+    maxRetries: number,
+    totalTimeoutMillis: number
+  ): Boolean {
+    const now = new Date();
 
     if (
       this.prevDeadline! !== undefined &&
@@ -198,7 +182,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       now.getTime() >= this.prevDeadline
     ) {
       const error = new GoogleError(
-        `Total timeout of API exceeded ${retry.backoffSettings.totalTimeoutMillis} milliseconds before any response was received.`
+        `Total timeout of API exceeded ${totalTimeoutMillis} milliseconds before any response was received.`
       );
       error.code = Status.DEADLINE_EXCEEDED;
       this.emit('error', error);
@@ -220,59 +204,106 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       this.destroy(error);
       throw error;
     }
+    return true;
+  }
+
+  /**
+   * TODO(galzahavi): Add Comments
+   */
+  streamHandoffErrorHandler(
+    stream: CancellableStream,
+    retry: RetryOptions,
+    retryRequestOptions: RetryRequestOptions,
+    error: Error
+  ): void {
+    let retryStream = this.stream;
+    const delayMult = retry.backoffSettings.retryDelayMultiplier;
+    const maxDelay = retry.backoffSettings.maxRetryDelayMillis;
+    const timeoutMult = retry.backoffSettings.rpcTimeoutMultiplier;
+    const maxTimeout = retry.backoffSettings.maxRpcTimeoutMillis;
+
+    let delay = retry.backoffSettings.initialRetryDelayMillis;
+    let timeout = retry.backoffSettings.initialRpcTimeoutMillis;
+    let now = new Date();
+    let deadline = 0;
+
+    if (retry.backoffSettings.totalTimeoutMillis) {
+      deadline = now.getTime() + retry.backoffSettings.totalTimeoutMillis;
+    }
+    const maxRetries = retry.backoffSettings.maxRetries!; //TODO(coleleah): check this being in backoff settings - might be call options
+
+    this.timeoutAndMaxRetryCheck(
+      deadline,
+      maxRetries,
+      retry.backoffSettings.totalTimeoutMillis!
+    );
 
     this.retries!++;
 
+    const e = GoogleError.parseGRPCStatusDetails(error);
+    console.log(e.code);
+    let shouldRetry = this.defaultShouldRetry(e!, retry);
+    if (typeof retry.retryCodesOrShouldRetryFn! === 'function') {
+      shouldRetry = retry.retryCodesOrShouldRetryFn!(e!);
+    }
+
+    if (shouldRetry) {
+      const toSleep = Math.random() * delay;
+      setTimeout(() => {
+        now = new Date();
+        delay = Math.min(delay * delayMult, maxDelay);
+        const timeoutCal = timeout && timeoutMult ? timeout * timeoutMult : 0;
+        const rpcTimeout = maxTimeout ? maxTimeout : 0;
+        this.prevDeadline = deadline;
+        const newDeadline = deadline ? deadline - now.getTime() : 0;
+        timeout = Math.min(timeoutCal, rpcTimeout, newDeadline);
+      }, toSleep);
+    } else {
+      const newError = new GoogleError(
+        'Exception occurred in retry method that was ' +
+          'not classified as transient'
+      );
+      newError.code = Status.INVALID_ARGUMENT;
+      this.emit('error', newError);
+      this.destroy(error);
+      throw error;
+    }
+
+    if (maxRetries && deadline!) {
+      const error = new GoogleError(
+        'Cannot set both totalTimeoutMillis and maxRetries ' +
+          'in backoffSettings.'
+      );
+      error.code = Status.INVALID_ARGUMENT;
+      this.emit('error', error);
+
+      this.destroy(error);
+      throw error;
+    } else {
+      //TODO(coleleah): refactor to remove retryRequestOptions)
+      retryStream = this.retry(stream, retry, retryRequestOptions);
+      this.stream = retryStream;
+      return;
+    }
+  }
+
+  /**
+   * TODO(galzahavi): Add Comments
+   */
+  streamHandoffHelper(
+    stream: CancellableStream,
+    retry: RetryOptions,
+    retryRequestOptions: RetryRequestOptions
+  ): CancellableStream | undefined {
+    const retryStream = this.stream;
     const eventsToForward = ['metadata', 'response', 'status', 'data'];
     eventsToForward.forEach(event => {
       stream.on(event, this.emit.bind(this, event));
     });
 
     stream.on('error', error => {
-      const e = GoogleError.parseGRPCStatusDetails(error);
-      let shouldRetry = this.defaultShouldRetry(e!, retry);
-      if (typeof retry.retryCodesOrShouldRetryFn! === 'function') {
-        shouldRetry = retry.retryCodesOrShouldRetryFn!(e!);
-      }
-
-      if (shouldRetry) {
-        const toSleep = Math.random() * delay;
-        setTimeout(() => {
-          now = new Date();
-          delay = Math.min(delay * delayMult, maxDelay);
-          const timeoutCal = timeout && timeoutMult ? timeout * timeoutMult : 0;
-          const rpcTimeout = maxTimeout ? maxTimeout : 0;
-          this.prevDeadline = deadline;
-          const newDeadline = deadline ? deadline - now.getTime() : 0;
-          timeout = Math.min(timeoutCal, rpcTimeout, newDeadline);
-        }, toSleep);
-      } else {
-        const newError = new GoogleError(
-          'Exception occurred in retry method that was ' +
-            'not classified as transient'
-        );
-        newError.code = Status.INVALID_ARGUMENT;
-        this.emit('error', newError);
-        this.destroy(error);
-        throw error;
-      }
-
-      if (maxRetries && deadline!) {
-        const error = new GoogleError(
-          'Cannot set both totalTimeoutMillis and maxRetries ' +
-            'in backoffSettings.'
-        );
-        error.code = Status.INVALID_ARGUMENT;
-        this.emit('error', error);
-
-        this.destroy(error);
-        throw error;
-      } else {
-        //TODO(coleleah): refactor to remove retryRequestOptions)
-        retryStream = this.retry(stream, retry, retryRequestOptions);
-        this.stream = retryStream;
-        return;
-      }
+      console.log(error.message);
+      this.streamHandoffErrorHandler(stream, retry, retryRequestOptions, error);
     });
 
     return retryStream;

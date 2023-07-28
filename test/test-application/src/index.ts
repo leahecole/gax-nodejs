@@ -201,8 +201,8 @@ function getStreamingSequenceRequest() {
 
   const fourthResponse =
     new protos.google.showcase.v1beta1.StreamingSequence.Response();
-  fourthResponse.delay = thirdDelay;
-  fourthResponse.status = thirdStatus;
+  fourthResponse.delay = fourthDelay;
+  fourthResponse.status = fourthStatus;
   fourthResponse.responseIndex = 11;
 
   const streamingSequence =
