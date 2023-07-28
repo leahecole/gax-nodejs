@@ -825,7 +825,7 @@ it('emit error and retry three times', done => {
     //TODO(coleleah)
     it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
       sinon
-        .stub(streaming.StreamProxy.prototype, 'forwardEvents')
+        .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
         .callsFake((stream): any => {
           assert(stream instanceof internal.Stream);
           done();
@@ -1015,7 +1015,7 @@ it('emit error and retry three times', done => {
       //     'DeprecationWarning',)
       //     )
 
-      // warnStub.restore();
+      warnStub.restore();
     });
     // NO RETRY BEHAVIOR ENABLED
     it('throws a warning when retryRequestOptions are passed', done => {
