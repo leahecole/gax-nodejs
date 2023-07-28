@@ -366,12 +366,16 @@ export function checkRetrySettings(
 
         if (options.retryRequestOptions.shouldRetryFn) {
           retryCodesOrShouldRetryFn = options.retryRequestOptions.shouldRetryFn;
+        } else { // default to retry code 14 per AIP-194
+          retryCodesOrShouldRetryFn = [14]
         }
 
         //Backoff settings
         if (options.retryRequestOptions.retries !== null && options.retryRequestOptions !== undefined){ // don't want to just check for truthiness here in case it's 0
           options.maxRetries = options.retryRequestOptions.retries;
         }
+        // create a default backoff settings object in case the user didn't provide overrides for everything
+        let backoffSettings = createDefaultBackoffSettings();
         let maxRetryDelayMillis;
         let totalTimeoutMillis;
         let retryDelayMultiplier;
@@ -386,21 +390,23 @@ export function checkRetrySettings(
         if (options.retryRequestOptions.totalTimeout) {
           totalTimeoutMillis = options.retryRequestOptions.totalTimeout * 1000;
         }
-        // create backoff settings with these values and with default values
-        if (maxRetryDelayMillis && retryDelayMultiplier && totalTimeoutMillis) {
-          const backoffSettings = createBackoffSettings(
-            100,
-            retryDelayMultiplier,
-            maxRetryDelayMillis,
-            null,
-            null,
-            null,
-            totalTimeoutMillis
-          );
+
+        // for the variables the user wants to override, override in the backoff settings object we made
+        if (maxRetryDelayMillis){
+          backoffSettings.maxRetryDelayMillis = maxRetryDelayMillis;
         }
+        if (retryDelayMultiplier){
+          backoffSettings.retryDelayMultiplier = retryDelayMultiplier;
+        }
+        if (totalTimeoutMillis){
+          backoffSettings.totalTimeoutMillis = totalTimeoutMillis;
+        }
+        
+        
 
         // TODO(coleleah) create retry settings from all of these local variables
-
+        const convertedRetryOptions = createRetryOptions(retryCodesOrShouldRetryFn, backoffSettings);
+        options.retry = convertedRetryOptions;
         warn(
           'legacy_streaming_retry_request_behavior', // TODO(coleleah): figure out warning code
           'Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.',
