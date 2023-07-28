@@ -75,7 +75,7 @@ const RETRY_DICT = {
 //TODO (coleleah): double check this logic, add additional tests
 function expectRetryOptions(obj: gax.RetryOptions) {
   assert.ok(obj instanceof Object);
-  ['retryCodes', 'backoffSettings'].forEach(k =>
+  ['retryCodesOrShouldRetryFn', 'backoffSettings'].forEach(k =>
     // eslint-disable-next-line no-prototype-builtins
     assert.ok(obj.hasOwnProperty(k))
   );
@@ -116,13 +116,13 @@ describe('gax construct settings', () => {
     assert.strictEqual(settings.timeout, 40000);
     assert.strictEqual(settings.apiName, SERVICE_NAME);
     expectRetryOptions(settings.retry);
-    assert.deepStrictEqual(settings.retry.retryCodes, [1, 2]);
+    assert.deepStrictEqual(settings.retry.retryCodesOrShouldRetryFn, [1, 2]);
     assert.strictEqual(settings.otherArgs, otherArgs);
 
     settings = defaults.pageStreamingMethod;
     assert.strictEqual(settings.timeout, 30000);
     expectRetryOptions(settings.retry);
-    assert.deepStrictEqual(settings.retry.retryCodes, [3]);
+    assert.deepStrictEqual(settings.retry.retryCodesOrShouldRetryFn, [3]);
     assert.strictEqual(settings.otherArgs, otherArgs);
   });
 
