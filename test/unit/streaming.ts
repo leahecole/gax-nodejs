@@ -822,6 +822,9 @@ it('emit error and retry three times', done => {
     errorCount++;
   });
   describe('handles server streaming retries in gax when gaxStreamingRetries is enabled', () => {
+    afterEach(() => {
+      sinon.restore();
+    });
     //TODO(coleleah)
     it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
       sinon
@@ -1015,7 +1018,6 @@ it('emit error and retry three times', done => {
       //     'DeprecationWarning',)
       //     )
 
-      warnStub.restore();
     });
     // NO RETRY BEHAVIOR ENABLED
     it('throws a warning when retryRequestOptions are passed', done => {
@@ -1070,7 +1072,6 @@ it('emit error and retry three times', done => {
         )
       );
 
-      warnStub.restore();
     });
     it('throws a warning when retry options are passed', done => {
       const warnStub = sinon.stub(warnings, 'warn');
@@ -1119,7 +1120,6 @@ it('emit error and retry three times', done => {
         )
       );
 
-      warnStub.restore();
     });
     it('throws no warnings when when no retry options are passed', done => {
       const warnStub = sinon.stub(warnings, 'warn');
@@ -1148,7 +1148,6 @@ it('emit error and retry three times', done => {
       // make the call with neither retry option passed at call time
       apiCall({}, {});
       assert.strictEqual(warnStub.callCount, 0);
-      warnStub.restore();
     });
     it('throws two warnings when when retry and retryRequestoptions are passed', done => {
       const warnStub = sinon.stub(warnings, 'warn');
@@ -1201,7 +1200,6 @@ it('emit error and retry three times', done => {
         }
       );
       assert.strictEqual(warnStub.callCount, 2);
-      warnStub.restore();
     });
     //TODO(coleleah): handle noResponseRetries case
   });
