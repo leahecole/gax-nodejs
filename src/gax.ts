@@ -346,7 +346,7 @@ export function checkRetrySettings(
         throw new Error('Only one of retry or retryRequestOptions may be set');
       }
     } else {
-      // if user is opted into legacy settings but has passed retry settings, let them know there might be an issue
+      // if user is opted into legacy settings but has passed retry settings, let them know there might be an issue if it's a streaming call
       if (options.retry !== undefined) {
         warn(
           'legacy_streaming_retry_behavior', // TODO(coleleah): figure out warning code

@@ -180,40 +180,6 @@ describe('streaming', () => {
     s.end();
   });
 
-  it('allows custome CallOptions.retry settings', done => {
-    sinon
-      .stub(streaming.StreamProxy.prototype, 'forwardEvents')
-      .callsFake((stream): any => {
-        assert(stream instanceof internal.Stream);
-        done();
-      });
-    const spy = sinon.spy((...args: Array<{}>) => {
-      assert.strictEqual(args.length, 3);
-      const s = new PassThrough({
-        objectMode: true,
-      });
-      return s;
-    });
-
-    const apiCall = createApiCallStreaming(
-      spy,
-      streaming.StreamType.SERVER_STREAMING
-    );
-
-    apiCall(
-      {},
-      {
-        retry: gax.createRetryOptions([1], {
-          initialRetryDelayMillis: 100,
-          retryDelayMultiplier: 1.2,
-          maxRetryDelayMillis: 1000,
-          rpcTimeoutMultiplier: 1.5,
-          maxRpcTimeoutMillis: 3000,
-          totalTimeoutMillis: 4500,
-        }),
-      }
-    );
-  });
 
   it('forwards metadata and status', done => {
     const responseMetadata = {metadata: true};
@@ -867,12 +833,50 @@ it('emit error and retry three times', done => {
         }
       );
     });
-    //TODO(coleleah)
+    it('allows custom CallOptions.retry settings with retryCodes new retry behavior', done => {
+      sinon
+        .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
+        .callsFake((stream): any => {
+          assert(stream instanceof internal.Stream);
+          done();
+        });
+      const spy = sinon.spy((...args: Array<{}>) => {
+        assert.strictEqual(args.length, 3);
+        const s = new PassThrough({
+          objectMode: true,
+        });
+        return s;
+      });
+
+      const apiCall = createApiCallStreaming(
+        spy,
+        streaming.StreamType.SERVER_STREAMING,
+        false,
+        true //gaxStreamingRetries
+      );
+
+      apiCall(
+        {},
+        {
+          retry: gax.createRetryOptions(
+            [1, 2, 3],
+            {
+              initialRetryDelayMillis: 100,
+              retryDelayMultiplier: 1.2,
+              maxRetryDelayMillis: 1000,
+              rpcTimeoutMultiplier: 1.5,
+              maxRpcTimeoutMillis: 3000,
+              totalTimeoutMillis: 4500,
+            }
+          ),
+        }
+      );
+    });
 
     it('throws an error when both retryRequestoptions and retryOptions are passed at call time when new retry behavior is enabled', done => {
       // TODO(coleleah): this might not be needed
       //if this is reached, it means the settings merge in createAPICall did not fail properly
-      sinon
+      const callStub = sinon
         .stub(StreamingApiCaller.prototype, 'call')
         .callsFake((apiCall, argument, settings, stream) => {
           throw new Error("This shouldn't be happening");
@@ -930,18 +934,21 @@ it('emit error and retry three times', done => {
         done();
       }
     });
-    //TODO
   });
   //TODO(coleleah): rename this describe
   describe('properly warns the user about server streaming retry behavior when gaxStreamingRetries is disabled', () => {
+    afterEach(() => {
+      // restore 'call' stubs and 'warn' stubs
+      sinon.restore();
+    });
     //TODO(coleleah): make a test that shows deprecation notice and converts retry request options passed at call time
-    it('throws a warning and converts retryRequestOptions for new retry behavior', done => {
+    it('throws a warning and converts retryRequestOptions for new retry behavior', done => { //TODO(coleleah): unskip
       const warnStub = sinon.stub(warnings, 'warn');
 
       sinon
         .stub(StreamingApiCaller.prototype, 'call')
         .callsFake((apiCall, argument, settings, stream) => {
-          console.log(settings.retry);
+          // console.log(settings.retry);
           try {
             // Retry settings
             // TODO: do we care about this? - noresponseRetries - yes
@@ -972,6 +979,7 @@ it('emit error and retry three times', done => {
             console.log('after asserts');
             done();
           } catch (err) {
+            console.log("error in test")
             done(err);
           }
         });

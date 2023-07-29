@@ -75,14 +75,20 @@ export function createApiCall(
     const gaxStreamingRetries = (currentApiCaller as StreamingApiCaller)
       .descriptor?.gaxStreamingRetries;
 
-    // If Gax streaming retries are enabled, check settings passed at call time and convert parameters if needed
-    const thisSettingsTemp = checkRetrySettings(
-      callOptions,
-      gaxStreamingRetries
-    );
-    const thisSettings = settings.merge(thisSettingsTemp);
-    // console.log("settings have been merged", thisSettings)
+    let thisSettings: CallSettings;
+    if (currentApiCaller instanceof StreamingApiCaller){
+        // If Gax streaming retries are enabled, check settings passed at call time and convert parameters if needed
+      const thisSettingsTemp = checkRetrySettings(
+        callOptions,
+        gaxStreamingRetries
+      );
+      thisSettings = settings.merge(thisSettingsTemp);
 
+    }else{
+      thisSettings = settings.merge(callOptions);
+    
+    }
+   
     // special case: if bundling is disabled for this one call,
     // use default API caller instead
     if (settings.isBundling && !thisSettings.isBundling) {
