@@ -93,7 +93,6 @@ async function testShowcase() {
   // await testCreateSequence(grpcSequenceClient);
 
   await testStreaming(grpcSequenceClientWithNewRetry).then(async () => {
-    // console.log("Hi")
     // grpcSequenceClientWithNewRetry.initialize()
     // const sequnceReport = "streamingsequences/0/streamingSequenceReport"
     // const reportRequest = new protos.google.showcase.v1beta1.GetStreamingSequenceReportRequest()

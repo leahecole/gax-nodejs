@@ -252,6 +252,8 @@ describe('streaming', () => {
     }, 50);
   });
   it('cancels in the middle', done => {
+    const warnStub = sinon.stub(warnings, 'warn');
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function schedulePush(s: any, c: number) {
       const intervalId = setInterval(() => {
@@ -311,6 +313,14 @@ describe('streaming', () => {
       assert.strictEqual(err, cancelError);
       done();
     });
+    assert.strictEqual(warnStub.callCount, 1);
+    assert(
+      warnStub.calledWith(
+        'legacy_streaming_retry_behavior',
+        'Legacy streaming retry behavior will not honor settings passed at call time or via client configuration. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will be set to true by default in future releases.',
+        'DeprecationWarning'
+      )
+    );
   });
 
   it('emit response when stream received metadata event', done => {
@@ -460,6 +470,8 @@ describe('streaming', () => {
   });
 
   it('emit parsed GoogleError', done => {
+    const warnStub = sinon.stub(warnings, 'warn');
+
     const errorInfoObj = {
       reason: 'SERVICE_DISABLED',
       domain: 'googleapis.com',
@@ -536,6 +548,14 @@ describe('streaming', () => {
     s.on('end', () => {
       done();
     });
+    assert.strictEqual(warnStub.callCount, 1);
+    assert(
+      warnStub.calledWith(
+        'legacy_streaming_retry_behavior',
+        'Legacy streaming retry behavior will not honor settings passed at call time or via client configuration. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will be set to true by default in future releases.',
+        'DeprecationWarning'
+      )
+    );
   });
 
   it('emit error and retry once', done => {
@@ -948,7 +968,6 @@ it('emit error and retry three times', done => {
       sinon
         .stub(StreamingApiCaller.prototype, 'call')
         .callsFake((apiCall, argument, settings, stream) => {
-          // console.log(settings.retry);
           try {
             // Retry settings
             // TODO: do we care about this? - noresponseRetries - yes
@@ -976,10 +995,8 @@ it('emit error and retry three times', done => {
               typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
             );
             assert(settings.retry != new gax.CallSettings().retry);
-            console.log('after asserts');
             done();
           } catch (err) {
-            console.log("error in test")
             done(err);
           }
         });

@@ -236,7 +236,12 @@ export class CallSettings {
           retry.backoffSettings.initialRpcTimeoutMillis = timeout;
           retry.backoffSettings.maxRpcTimeoutMillis = timeout;
           retry.backoffSettings.totalTimeoutMillis = timeout;
+        } else{
+          console.log("IN ELSE");
+          console.log(typeof(retry.retryCodesOrShouldRetryFn))
         }
+      }else{
+        console.log("other else") //TODO(coleleah)
       }
     }
 
@@ -333,7 +338,6 @@ export function checkRetrySettings(
   options?: CallOptions,
   gaxStreamingRetries?: boolean
 ): CallOptions | undefined {
-  // console.log("Checking retry settings");
   // options will be undefined if no CallOptions object is passed at call time
   if (options) {
     // if a user provided retry AND retryRequestOptions at call time, throw an error
