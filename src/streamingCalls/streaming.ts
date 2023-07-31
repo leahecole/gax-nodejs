@@ -235,7 +235,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     this.retries!++;
 
     const e = GoogleError.parseGRPCStatusDetails(error);
-    console.log(e.code);
     let shouldRetry = this.defaultShouldRetry(e!, retry);
     if (typeof retry.retryCodesOrShouldRetryFn! === 'function') {
       shouldRetry = retry.retryCodesOrShouldRetryFn!(e!);
@@ -259,8 +258,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       );
       newError.code = Status.INVALID_ARGUMENT;
       this.emit('error', newError);
-      this.destroy(error);
-      throw error;
+      this.destroy(newError);
+      return;
     }
 
     if (maxRetries && deadline!) {
@@ -296,7 +295,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     });
 
     stream.on('error', error => {
-      console.log(error.message);
       this.streamHandoffErrorHandler(stream, retry, retryRequestOptions, error);
     });
 
@@ -431,9 +429,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
           );
           newError.code = Status.INVALID_ARGUMENT;
           this.emit('error', newError);
-
-          this.destroy(error);
-          throw error;
+          this.destroy(newError);
+          throw newError;
         }
       } else {
         return GoogleError.parseGRPCStatusDetails(error);
