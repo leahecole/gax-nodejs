@@ -91,7 +91,7 @@ async function testShowcase() {
 
   // assuming gRPC server is started locally
   // await testCreateSequence(grpcSequenceClient);
-
+  //TODO(coleleah): backwards compatibility tests
   await testStreaming(grpcSequenceClientWithNewRetry);
 
   await testServerStreamingRetriesThrowsInvalidArgument(
