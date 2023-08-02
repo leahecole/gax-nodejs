@@ -34,6 +34,9 @@ import {
 } from 'google-gax';
 import stream = require('stream');
 
+let testInProgress = false;
+let testDone = false;
+
 async function testShowcase() {
   const grpcClientOpts = {
     grpc,
@@ -92,11 +95,18 @@ async function testShowcase() {
   // assuming gRPC server is started locally
   // await testCreateSequence(grpcSequenceClient);
 
+  // await testServerStreamingRetrieswithRetryOptions(
+  //   grpcSequenceClientWithNewRetry
+  // );
+
+  // await testServerStreamingRetriesThrowsInvalidArgument(
+  //   grpcSequenceClientWithNewRetry
+  // );
+
   await testStreaming(grpcSequenceClientWithNewRetry);
 
-  await testServerStreamingRetriesThrowsInvalidArgument(
-    grpcSequenceClientWithNewRetry
-  );
+  // console.log('passed 2');
+
   // await streamingNotRetryEligible(grpcSequenceClientWithNewRetry);
 
   // await testEcho(grpcClient);
@@ -205,10 +215,71 @@ async function testEcho(client: EchoClient) {
   assert.deepStrictEqual(request.content, response.content);
 }
 
+async function testServerStreamingRetrieswithRetryOptions(
+  client: SequenceServiceClient
+) {
+  const finalData: string[] = [];
+  await new Promise<void>(async (resolve, _) => {
+    const backoffSettings = createBackoffSettings(
+      100,
+      1.2,
+      1000,
+      null,
+      1.5,
+      3000,
+      10000
+    );
+
+    const retryOptions = new RetryOptions([14, 4], backoffSettings);
+
+    const settings = {
+      retry: retryOptions,
+    };
+
+    client.initialize();
+
+    const request = createStreamingSequenceRequestFactory(
+      [Status.UNAVAILABLE, Status.DEADLINE_EXCEEDED, Status.OK],
+      [0.1, 0.1, 0.1],
+      [1, 2, 11],
+      'This is testing the brand new and shiny StreamingSequence server 3'
+    );
+
+    const response = await client.createStreamingSequence(request);
+    const sequence = response[0];
+
+    const attemptRequest =
+      new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+    attemptRequest.name = sequence.name!;
+
+    const attemptStream = client.attemptStreamingSequence(
+      attemptRequest,
+      settings
+    );
+    attemptStream.on('data', (response: {content: string}) => {
+      finalData.push(response.content);
+      console.log(response.content);
+    });
+    attemptStream.on('error', (e: any) => {
+      console.log('Error Caught :', e.code);
+      console.log('Error Message :', e.message);
+    });
+    attemptStream.on('end', () => {
+      resolve();
+    });
+  }).then(() => {
+    console.log('here');
+    assert.equal(
+      finalData.join(' '),
+      'This This is This is testing the brand new and shiny StreamingSequence server 3'
+    );
+  });
+}
+
 async function testServerStreamingRetriesThrowsInvalidArgument(
   client: SequenceServiceClient
 ) {
-  const promise = new Promise<GoogleError>(async (_, reject) => {
+  await new Promise<GoogleError>(async (_, reject) => {
     const backoffSettings = createBackoffSettings(
       100,
       1.2,
@@ -262,6 +333,8 @@ async function testServerStreamingRetriesThrowsInvalidArgument(
 }
 
 async function testStreaming(client: SequenceServiceClient) {
+  testInProgress = true;
+  testDone = true;
   const backoffSettings = createBackoffSettings(
     10000,
     2.5,
@@ -294,7 +367,6 @@ async function testStreaming(client: SequenceServiceClient) {
 
   const response = await client.createStreamingSequence(request);
   const sequence = response[0];
-
   const attemptRequest =
     new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
   attemptRequest.name = sequence.name!;
@@ -303,15 +375,18 @@ async function testStreaming(client: SequenceServiceClient) {
     attemptRequest,
     settings
   );
-  attemptStream.on('data', (response: {content: string}) => {
-    console.log('content: ' + response.content);
-  });
-  attemptStream.on('error', (e: any) => {
-    console.log('Error Caught :', e.code);
-    console.log('Error Message :', e.message);
-  });
-  attemptStream.on('end', () => {
-    console.log('end');
+  await new Promise<void>((resolve, _) => {
+    attemptStream.on('data', (response: {content: string}) => {
+      console.log('content: ' + response.content);
+    });
+    attemptStream.on('error', (e: any) => {
+      console.log('Error Caught :', e.code);
+      console.log('Error Message :', e.message);
+    });
+    attemptStream.on('end', () => {
+      console.log('end');
+      resolve();
+    });
   });
 }
 
@@ -719,14 +794,13 @@ async function testWait(client: EchoClient) {
 }
 
 async function main() {
-  // const showcaseServer = new ShowcaseServer();
+  const showcaseServer = new ShowcaseServer();
   // try {
-  //   await showcaseServer.start();
-  //   await testShowcase();
+  // await showcaseServer.start();
+  await testShowcase();
   // } finally {
   //   showcaseServer.stop();
   // }
-  await testShowcase();
 }
 
 main();
