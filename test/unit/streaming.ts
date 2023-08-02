@@ -962,35 +962,34 @@ it('emit error and retry three times', done => {
       sinon.restore();
     });
     //TODO(coleleah): make a test that shows deprecation notice and converts retry request options passed at call time
+    //TODO(coleleah): make a version of this test that does not have max retries
     it('throws a warning and converts retryRequestOptions for new retry behavior', done => { //TODO(coleleah): unskip
-      const warnStub = sinon.stub(warnings, 'warn');
+      const warnStub = sinon.stub(warnings, 'warn'); //TODO(coleleah)
 
       sinon
         .stub(StreamingApiCaller.prototype, 'call')
         .callsFake((apiCall, argument, settings, stream) => {
           try {
             // Retry settings
-            // TODO: do we care about this? - noresponseRetries - yes
             // TODO: retries - one to one with maxRetries - this should be undefined if timeout is defined, I think
             // TODO: objectMode - do we care about this? I think yes, but we may want to suggest folks deal with it elsewhere
-
+            console.log("retry", settings.retry)
             // //Backoff settings
             assert(settings.retry);
-            // maxRetryDelay - this is in seconds, need to convert to milliseconds
+            assert(typeof settings.retryRequestOptions === 'undefined');
             assert.strictEqual(
               settings.retry?.backoffSettings.maxRetryDelayMillis,
               70000
             );
-            // retryDelayMultiplier - should be a one to one mapping to retryDelayMultiplier
             assert.strictEqual(
               settings.retry?.backoffSettings.retryDelayMultiplier,
               3
             );
-            // totalTimeout - this is in seconds and needs to be converted to milliseconds and the totalTimeoutMillis parameter
-            assert.strictEqual(
-              settings.retry?.backoffSettings.totalTimeoutMillis,
-              650000
+            // totalTimeout is undefined because maxRetries is passed
+            assert(typeof
+              settings.retry?.backoffSettings.totalTimeoutMillis === 'undefined'
             );
+            assert.strictEqual(settings.retry?.backoffSettings.maxRetries, 1)
             assert(
               typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
             );
@@ -1035,13 +1034,13 @@ it('emit error and retry three times', done => {
         }
       );
 
-      // assert.strictEqual(warnStub.callCount, 1); //TODO: coleleah - change this back to 1
-      // assert(
-      //   warnStub.calledWith(
-      //     'legacy_streaming_retry_request_behavior',
-      //     'Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.',
-      //     'DeprecationWarning',)
-      //     )
+      assert.strictEqual(warnStub.callCount, 1); //TODO: coleleah - change this back to 1
+      assert(
+        warnStub.calledWith(
+          'legacy_streaming_retry_request_behavior',
+          'Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.',
+          'DeprecationWarning',)
+          )
 
     });
     // NO RETRY BEHAVIOR ENABLED

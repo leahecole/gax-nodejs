@@ -295,6 +295,7 @@ export class CallSettings {
     }
 
     if ('maxRetries' in options) {
+      console.log("removing timeout in favor of max retries", retry!.backoffSettings!.totalTimeoutMillis)
       retry!.backoffSettings!.maxRetries = options.maxRetries;
       delete retry!.backoffSettings!.totalTimeoutMillis;
     }
@@ -359,10 +360,13 @@ export function checkRetrySettings(
         );
       }
       if (options.retryRequestOptions !== undefined) {
-        // // do parameter conversion here:
         // // Retry settings
-        // // TODO(coleleah): do we care about this? - noresponseRetries - should this be the same as retries? - No - after talkign to Denis, this is when there's a connectivity issue and there may not be a gRPC error code
-        // // TODO(coleleah): objectMode - do we care about this?
+        if(options.retryRequestOptions.noResponseRetries){
+          console.log("objectMode override is not supported. It is set to true internally by default in gax.")
+        }
+        if(options.retryRequestOptions.noResponseRetries){
+          console.log("noResponseRetries override is not supported. Please specify retry codes or a function to determine retry eligibility.")
+        }
         if(options.retryRequestOptions.currentRetryAttempt){
           console.log("currentRetryAttempt override is not supported. Retry attempts are tracked internally.")
         }
@@ -411,6 +415,7 @@ export function checkRetrySettings(
         // TODO(coleleah) create retry settings from all of these local variables
         const convertedRetryOptions = createRetryOptions(retryCodesOrShouldRetryFn, backoffSettings);
         options.retry = convertedRetryOptions;
+        options.retryRequestOptions = undefined;
         warn(
           'legacy_streaming_retry_request_behavior', // TODO(coleleah): figure out warning code
           'Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.',
