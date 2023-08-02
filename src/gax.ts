@@ -290,7 +290,7 @@ export class CallSettings {
       isBundling = options.isBundling!;
     }
 
-    if ('maxRetries' in options) {
+    if ('maxRetries' in options && typeof options.maxRetries !== 'undefined') {
       console.log(
         'removing timeout in favor of max retries',
         retry!.backoffSettings!.totalTimeoutMillis
@@ -421,7 +421,7 @@ export function checkRetryOptions(
             backoffSettings
           );
           options.retry = convertedRetryOptions;
-          options.retryRequestOptions = undefined;
+          delete options.retryRequestOptions; // completely remove them to avoid any further confusion
           warn(
             'retry_request_options', // TODO(coleleah): figure out warning code
             'retryRequestOptions will be deprecated in a future release. Please use retryOptions to pass retry options at call time',

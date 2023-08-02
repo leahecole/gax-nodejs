@@ -118,10 +118,13 @@ export function createApiCall(
               thisSettings.apiName
             );
           } else {
-            if (retry.retryCodesOrShouldRetryFn instanceof Function) {
+            if (
+              retry.retryCodesOrShouldRetryFn instanceof Function &&
+              !streaming
+            ) {
               throw new Error(
                 'Using a function to determine retry eligibility is only supported with server streaming calls'
-              ); //TODO(Coleleah) add documentaion
+              ); //TODO(Coleleah) add documentaion + test
             }
           }
         }

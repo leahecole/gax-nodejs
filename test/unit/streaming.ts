@@ -947,19 +947,14 @@ it('emit error and retry three times', done => {
         done();
       }
     });
-    //TODO(coleleah): make a test that shows deprecation notice and converts retry request options passed at call time - this might belong in the other describe
-    //TODO(coleleah): make a version of this test that does not have max retries
     it('throws a warning and converts retryRequestOptions for new retry behavior', done => {
       const warnStub = sinon.stub(warnings, 'warn'); //TODO(coleleah)
-
       sinon
         .stub(StreamingApiCaller.prototype, 'call')
         .callsFake((apiCall, argument, settings, stream) => {
           try {
             // Retry settings
             // TODO: retries - one to one with maxRetries - this should be undefined if timeout is defined, I think
-            // TODO: objectMode - do we care about this? I think yes, but we may want to suggest folks deal with it elsewhere
-            console.log('retry', settings.retry);
             // //Backoff settings
             assert(settings.retry);
             assert(typeof settings.retryRequestOptions === 'undefined');
@@ -976,6 +971,7 @@ it('emit error and retry three times', done => {
               typeof settings.retry?.backoffSettings.totalTimeoutMillis ===
                 'undefined'
             );
+
             assert.strictEqual(settings.retry?.backoffSettings.maxRetries, 1);
             assert(
               typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
@@ -1004,6 +1000,81 @@ it('emit error and retry three times', done => {
       const passedRetryRequestOptions = {
         objectMode: false,
         retries: 1,
+        maxRetryDelay: 70,
+        retryDelayMultiplier: 3,
+        totalTimeout: 650,
+        noResponseRetries: 3,
+        currentRetryAttempt: 0,
+        shouldRetryFn: function alwaysRetry() {
+          return true;
+        },
+      };
+      // make the call with both options passed at call time
+      apiCall(
+        {},
+        {
+          retryRequestOptions: passedRetryRequestOptions,
+        }
+      );
+
+      assert.strictEqual(warnStub.callCount, 1);
+      assert(
+        warnStub.calledWith(
+          'retry_request_options',
+          'retryRequestOptions will be deprecated in a future release. Please use retryOptions to pass retry options at call time',
+          'DeprecationWarning'
+        )
+      );
+    });
+    it('throws a warning and converts retryRequestOptions for new retry behavior - no maxRetries', done => {
+      const warnStub = sinon.stub(warnings, 'warn'); //TODO(coleleah)
+      sinon
+        .stub(StreamingApiCaller.prototype, 'call')
+        .callsFake((apiCall, argument, settings, stream) => {
+          try {
+            assert(settings.retry);
+            assert(typeof settings.retryRequestOptions === 'undefined');
+            assert.strictEqual(
+              settings.retry?.backoffSettings.maxRetryDelayMillis,
+              70000
+            );
+            assert.strictEqual(
+              settings.retry?.backoffSettings.retryDelayMultiplier,
+              3
+            );
+            assert.strictEqual(
+              settings.retry?.backoffSettings.totalTimeoutMillis,
+              650000
+            );
+            assert(
+              typeof settings.retry?.backoffSettings.maxRetries === 'undefined'
+
+            assert(
+              typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
+            );
+            assert(settings.retry != new gax.CallSettings().retry);
+            done();
+          } catch (err) {
+            done(err);
+          }
+        });
+
+      const spy = sinon.spy((...args: Array<{}>) => {
+        assert.strictEqual(args.length, 3);
+        const s = new PassThrough({
+          objectMode: true,
+        });
+        return s;
+      });
+
+      const apiCall = createApiCallStreaming(
+        spy,
+        streaming.StreamType.SERVER_STREAMING,
+        false,
+        true // gaxStreamingRetries
+      );
+      const passedRetryRequestOptions = {
+        objectMode: false,
         maxRetryDelay: 70,
         retryDelayMultiplier: 3,
         totalTimeout: 650,
