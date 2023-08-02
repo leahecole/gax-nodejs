@@ -263,15 +263,14 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     }
 
     if (maxRetries && deadline!) {
-      const error = new GoogleError(
+      const newError = new GoogleError(
         'Cannot set both totalTimeoutMillis and maxRetries ' +
           'in backoffSettings.'
       );
-      error.code = Status.INVALID_ARGUMENT;
-      this.emit('error', error);
+      newError.code = Status.INVALID_ARGUMENT;
+      this.emit('error', newError);
 
-      this.destroy(error);
-      throw error;
+      this.destroy(newError);
     } else {
       //TODO(coleleah): refactor to remove retryRequestOptions)
       retryStream = this.retry(stream, retry, retryRequestOptions);
@@ -428,9 +427,20 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         }
 
         if (shouldRetry) {
-          retryStream = this.retry(stream, retry, retryRequestOptions); //TODO(coleleah): remove retryrequestOptions
-          this.stream = retryStream;
-          return retryStream;
+          if (maxRetries && timeout!) {
+            const newError = new GoogleError(
+              'Cannot set both totalTimeoutMillis and maxRetries ' +
+                'in backoffSettings.'
+            );
+            newError.code = Status.INVALID_ARGUMENT;
+            this.emit('error', newError);
+            this.destroy(newError);
+            return;
+          } else {
+            retryStream = this.retry(stream, retry, retryRequestOptions); //TODO(coleleah): remove retryrequestOptions
+            this.stream = retryStream;
+            return retryStream;
+          }
         } else {
           const newError = new GoogleError(
             'Exception occurred in retry method that was ' +
@@ -439,7 +449,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
           newError.code = Status.INVALID_ARGUMENT;
           this.emit('error', newError);
           this.destroy(newError);
-          throw newError;
+          return;
         }
       } else {
         return GoogleError.parseGRPCStatusDetails(error);
