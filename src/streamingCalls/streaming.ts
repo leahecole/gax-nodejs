@@ -224,7 +224,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     if (retry.backoffSettings.totalTimeoutMillis) {
       deadline = now.getTime() + retry.backoffSettings.totalTimeoutMillis;
     }
-    const maxRetries = retry.backoffSettings.maxRetries!; //TODO(coleleah): check this being in backoff settings - might be call options
+    const maxRetries = retry.backoffSettings.maxRetries!;
 
     this.timeoutAndMaxRetryCheck(
       deadline,

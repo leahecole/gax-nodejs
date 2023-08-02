@@ -18,6 +18,7 @@ import * as assert from 'assert';
 import {status} from '@grpc/grpc-js';
 import {afterEach, describe, it} from 'mocha';
 import * as sinon from 'sinon';
+import {PassThrough} from 'stream';
 
 import * as gax from '../../src/gax';
 import {GoogleError} from '../../src/googleError';
@@ -139,22 +140,78 @@ describe('createApiCall', () => {
       done();
     });
   });
-  //TODO(coleleah): make version with gaxStreamingRetries enabled
-  //TODO(coleleah): override just shoudlRetryFn)
-  it('override just custom retry.retrycodes', done => {
+  it('override just custom retry.retryCodesOrShouldRetryFn with retry codes', done => {
     const initialRetryCodes = [1];
     const overrideRetryCodes = [1, 2, 3];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sinon.stub(retries, 'retryable').callsFake((func, retry): any => {
-      assert.strictEqual(retry.retryCodesOrShouldRetryFn, overrideRetryCodes);
+      try {
+        assert.strictEqual(retry.retryCodesOrShouldRetryFn, overrideRetryCodes);
+        done();
+      } catch (err) {
+        done(err);
+      }
       return func;
     });
 
-    function func() {
-      done();
-    }
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
+    const apiCall = createApiCall(spy, {
+      settings: {
+        retry: gax.createRetryOptions(initialRetryCodes, {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          totalTimeoutMillis: 4500,
+        }),
+      },
+    });
 
-    const apiCall = createApiCall(func, {
+    apiCall(
+      {},
+      {
+        retry: {
+          retryCodesOrShouldRetryFn: overrideRetryCodes,
+        },
+      }
+    );
+  });
+  // TODO(coleleah): might need to stub a different call for this one
+  it('errors when you try to override just custom retry.retryCodesOrShouldRetryFn with a function', done => {
+    console.log('IN THE TEST');
+    function neverRetry() {
+      return false;
+    }
+    const initialRetryCodes = [1];
+    const overrideRetryCodes = neverRetry;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sinon.stub(retries, 'retryable').callsFake((func, retry): any => {
+      try {
+        console.log('here in test', retry);
+        assert.strictEqual(retry.retryCodesOrShouldRetryFn, [2]); //TODO(coleleah): fix timeout!!
+        done();
+      } catch (err) {
+        console.log('here in error');
+        done(err);
+      }
+      return func;
+    });
+
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
+    const apiCall = createApiCall(spy, {
       settings: {
         retry: gax.createRetryOptions(initialRetryCodes, {
           initialRetryDelayMillis: 100,
@@ -501,8 +558,8 @@ describe('retryable', () => {
     });
   });
 
-  // TODO(coleleah): well, is it still internal with parameter conversion?
-  // maxRetries is unsupported, and intended for internal use only.
+  // maxRetries is unsupported, and intended for internal use only or
+  // use with retry-request backwards compatibility
   it('errors when totalTimeoutMillis and maxRetries set', done => {
     const maxRetries = 5;
     const backoff = gax.createMaxRetriesBackoffSettings(
