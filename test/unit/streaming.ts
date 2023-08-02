@@ -37,7 +37,6 @@ import {GoogleError} from '../../src';
 import {Metadata} from '@grpc/grpc-js';
 import {count, error} from 'console';
 
-//TODO(coleleah): check agreement of objectmode in various places
 function createApiCallStreaming(
   func:
     | Promise<GRPCCall>
@@ -179,7 +178,6 @@ describe('streaming', () => {
     s.write(arg);
     s.end();
   });
-
 
   it('forwards metadata and status', done => {
     const responseMetadata = {metadata: true};
@@ -811,7 +809,6 @@ it('emit error and retry three times', done => {
     afterEach(() => {
       sinon.restore();
     });
-    //TODO(coleleah)
     it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
       sinon
         .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
@@ -853,7 +850,7 @@ it('emit error and retry three times', done => {
         }
       );
     });
-    it('allows custom CallOptions.retry settings with retryCodes new retry behavior', done => {
+    it('allows custom CallOptions.retry settings with retryCodes and new retry behavior', done => {
       sinon
         .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
         .callsFake((stream): any => {
@@ -878,23 +875,19 @@ it('emit error and retry three times', done => {
       apiCall(
         {},
         {
-          retry: gax.createRetryOptions(
-            [1, 2, 3],
-            {
-              initialRetryDelayMillis: 100,
-              retryDelayMultiplier: 1.2,
-              maxRetryDelayMillis: 1000,
-              rpcTimeoutMultiplier: 1.5,
-              maxRpcTimeoutMillis: 3000,
-              totalTimeoutMillis: 4500,
-            }
-          ),
+          retry: gax.createRetryOptions([1, 2, 3], {
+            initialRetryDelayMillis: 100,
+            retryDelayMultiplier: 1.2,
+            maxRetryDelayMillis: 1000,
+            rpcTimeoutMultiplier: 1.5,
+            maxRpcTimeoutMillis: 3000,
+            totalTimeoutMillis: 4500,
+          }),
         }
       );
     });
 
     it('throws an error when both retryRequestoptions and retryOptions are passed at call time when new retry behavior is enabled', done => {
-      // TODO(coleleah): this might not be needed
       //if this is reached, it means the settings merge in createAPICall did not fail properly
       const callStub = sinon
         .stub(StreamingApiCaller.prototype, 'call')
@@ -954,26 +947,14 @@ it('emit error and retry three times', done => {
         done();
       }
     });
-  });
-  //TODO(coleleah): rename this describe
-  describe('properly warns the user about server streaming retry behavior when gaxStreamingRetries is disabled', () => {
-    afterEach(() => {
-      // restore 'call' stubs and 'warn' stubs
-      sinon.restore();
-    });
-    //TODO(coleleah): make a test that shows deprecation notice and converts retry request options passed at call time
-    //TODO(coleleah): make a version of this test that does not have max retries
-    it('throws a warning and converts retryRequestOptions for new retry behavior', done => { //TODO(coleleah): unskip
-      const warnStub = sinon.stub(warnings, 'warn'); //TODO(coleleah)
-
+    it('throws a warning and converts retryRequestOptions for new retry behavior', done => {
+      const warnStub = sinon.stub(warnings, 'warn');
       sinon
         .stub(StreamingApiCaller.prototype, 'call')
         .callsFake((apiCall, argument, settings, stream) => {
           try {
             // Retry settings
             // TODO: retries - one to one with maxRetries - this should be undefined if timeout is defined, I think
-            // TODO: objectMode - do we care about this? I think yes, but we may want to suggest folks deal with it elsewhere
-            console.log("retry", settings.retry)
             // //Backoff settings
             assert(settings.retry);
             assert(typeof settings.retryRequestOptions === 'undefined');
@@ -986,10 +967,12 @@ it('emit error and retry three times', done => {
               3
             );
             // totalTimeout is undefined because maxRetries is passed
-            assert(typeof
-              settings.retry?.backoffSettings.totalTimeoutMillis === 'undefined'
+            assert(
+              typeof settings.retry?.backoffSettings.totalTimeoutMillis ===
+                'undefined'
             );
-            assert.strictEqual(settings.retry?.backoffSettings.maxRetries, 1)
+
+            assert.strictEqual(settings.retry?.backoffSettings.maxRetries, 1);
             assert(
               typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
             );
@@ -1012,7 +995,7 @@ it('emit error and retry three times', done => {
         spy,
         streaming.StreamType.SERVER_STREAMING,
         false,
-        false // ensure we are NOT opted into the new retry behavior
+        true // gaxStreamingRetries
       );
       const passedRetryRequestOptions = {
         objectMode: false,
@@ -1034,15 +1017,98 @@ it('emit error and retry three times', done => {
         }
       );
 
-      assert.strictEqual(warnStub.callCount, 1); //TODO: coleleah - change this back to 1
+      assert.strictEqual(warnStub.callCount, 1);
       assert(
         warnStub.calledWith(
-          'legacy_streaming_retry_request_behavior',
-          'Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.',
-          'DeprecationWarning',)
-          )
-
+          'retry_request_options',
+          'retryRequestOptions will be deprecated in a future release. Please use retryOptions to pass retry options at call time',
+          'DeprecationWarning'
+        )
+      );
     });
+    it('throws a warning and converts retryRequestOptions for new retry behavior - no maxRetries', done => {
+      const warnStub = sinon.stub(warnings, 'warn');
+      sinon
+        .stub(StreamingApiCaller.prototype, 'call')
+        .callsFake((apiCall, argument, settings, stream) => {
+          try {
+            assert(settings.retry);
+            assert(typeof settings.retryRequestOptions === 'undefined');
+            assert.strictEqual(
+              settings.retry?.backoffSettings.maxRetryDelayMillis,
+              70000
+            );
+            assert.strictEqual(
+              settings.retry?.backoffSettings.retryDelayMultiplier,
+              3
+            );
+            assert.strictEqual(
+              settings.retry?.backoffSettings.totalTimeoutMillis,
+              650000
+            );
+            assert(
+              typeof settings.retry?.backoffSettings.maxRetries === 'undefined'
+            );
+            assert(
+              typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
+            );
+            assert(settings.retry != new gax.CallSettings().retry);
+            done();
+          } catch (err) {
+            done(err);
+          }
+        });
+
+      const spy = sinon.spy((...args: Array<{}>) => {
+        assert.strictEqual(args.length, 3);
+        const s = new PassThrough({
+          objectMode: true,
+        });
+        return s;
+      });
+
+      const apiCall = createApiCallStreaming(
+        spy,
+        streaming.StreamType.SERVER_STREAMING,
+        false,
+        true // gaxStreamingRetries
+      );
+      const passedRetryRequestOptions = {
+        objectMode: false,
+        maxRetryDelay: 70,
+        retryDelayMultiplier: 3,
+        totalTimeout: 650,
+        noResponseRetries: 3,
+        currentRetryAttempt: 0,
+        shouldRetryFn: function alwaysRetry() {
+          return true;
+        },
+      };
+      // make the call with both options passed at call time
+      apiCall(
+        {},
+        {
+          retryRequestOptions: passedRetryRequestOptions,
+        }
+      );
+
+      assert.strictEqual(warnStub.callCount, 1);
+      assert(
+        warnStub.calledWith(
+          'retry_request_options',
+          'retryRequestOptions will be deprecated in a future release. Please use retryOptions to pass retry options at call time',
+          'DeprecationWarning'
+        )
+      );
+    });
+  });
+  //TODO(coleleah): rename this describe
+  describe('properly warns the user about server streaming retry behavior when gaxStreamingRetries is disabled', () => {
+    afterEach(() => {
+      // restore 'call' stubs and 'warn' stubs
+      sinon.restore();
+    });
+
     // NO RETRY BEHAVIOR ENABLED
     it('throws a warning when retryRequestOptions are passed', done => {
       const warnStub = sinon.stub(warnings, 'warn');
@@ -1095,7 +1161,6 @@ it('emit error and retry three times', done => {
           'DeprecationWarning'
         )
       );
-
     });
     it('throws a warning when retry options are passed', done => {
       const warnStub = sinon.stub(warnings, 'warn');
@@ -1143,7 +1208,6 @@ it('emit error and retry three times', done => {
           'DeprecationWarning'
         )
       );
-
     });
     it('throws no warnings when when no retry options are passed', done => {
       const warnStub = sinon.stub(warnings, 'warn');
@@ -1225,7 +1289,6 @@ it('emit error and retry three times', done => {
       );
       assert.strictEqual(warnStub.callCount, 2);
     });
-    //TODO(coleleah): handle noResponseRetries case
   });
 });
 describe('REST streaming apiCall return StreamArrayParser', () => {
