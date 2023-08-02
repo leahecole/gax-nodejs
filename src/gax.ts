@@ -415,7 +415,6 @@ export function checkRetryOptions(
             backoffSettings.totalTimeoutMillis = totalTimeoutMillis;
           }
 
-          // TODO(coleleah) create retry settings from all of these local variables
           const convertedRetryOptions = createRetryOptions(
             retryCodesOrShouldRetryFn,
             backoffSettings
@@ -423,7 +422,7 @@ export function checkRetryOptions(
           options.retry = convertedRetryOptions;
           delete options.retryRequestOptions; // completely remove them to avoid any further confusion
           warn(
-            'retry_request_options', // TODO(coleleah): figure out warning code
+            'retry_request_options',
             'retryRequestOptions will be deprecated in a future release. Please use retryOptions to pass retry options at call time',
             'DeprecationWarning'
           );
@@ -433,14 +432,14 @@ export function checkRetryOptions(
       // if user is opted into legacy settings but has passed retry settings, let them know there might be an issue if it's a streaming call
       if (options.retry !== undefined) {
         warn(
-          'legacy_streaming_retry_behavior', // TODO(coleleah): figure out warning code
+          'legacy_streaming_retry_behavior',
           'Legacy streaming retry behavior will not honor settings passed at call time or via client configuration. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will be set to true by default in future releases.',
           'DeprecationWarning'
         );
       }
       if (options.retryRequestOptions !== undefined) {
         warn(
-          'legacy_streaming_retry_request_behavior', // TODO(coleleah): figure out warning code
+          'legacy_streaming_retry_request_behavior',
           'Legacy streaming retry behavior will not honor retryRequestOptions passed at call time. Please set gaxStreamingRetries to true to utilize passed retry settings. gaxStreamingRetries behavior will convert retryRequestOptions to retry parameters by default in future releases.',
           'DeprecationWarning'
         );

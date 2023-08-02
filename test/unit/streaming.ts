@@ -948,7 +948,7 @@ it('emit error and retry three times', done => {
       }
     });
     it('throws a warning and converts retryRequestOptions for new retry behavior', done => {
-      const warnStub = sinon.stub(warnings, 'warn'); //TODO(coleleah)
+      const warnStub = sinon.stub(warnings, 'warn');
       sinon
         .stub(StreamingApiCaller.prototype, 'call')
         .callsFake((apiCall, argument, settings, stream) => {
@@ -1027,7 +1027,7 @@ it('emit error and retry three times', done => {
       );
     });
     it('throws a warning and converts retryRequestOptions for new retry behavior - no maxRetries', done => {
-      const warnStub = sinon.stub(warnings, 'warn'); //TODO(coleleah)
+      const warnStub = sinon.stub(warnings, 'warn');
       sinon
         .stub(StreamingApiCaller.prototype, 'call')
         .callsFake((apiCall, argument, settings, stream) => {
@@ -1048,7 +1048,7 @@ it('emit error and retry three times', done => {
             );
             assert(
               typeof settings.retry?.backoffSettings.maxRetries === 'undefined'
-
+            );
             assert(
               typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
             );
@@ -1289,7 +1289,6 @@ it('emit error and retry three times', done => {
       );
       assert.strictEqual(warnStub.callCount, 2);
     });
-    //TODO(coleleah): handle noResponseRetries case
   });
 });
 describe('REST streaming apiCall return StreamArrayParser', () => {

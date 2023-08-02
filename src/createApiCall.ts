@@ -74,7 +74,6 @@ export function createApiCall(
     let currentApiCaller = apiCaller;
     const gaxStreamingRetries = (currentApiCaller as StreamingApiCaller)
       .descriptor?.gaxStreamingRetries;
-
     let thisSettings: CallSettings;
     if (currentApiCaller instanceof StreamingApiCaller) {
       // If Gax streaming retries are enabled, check settings passed at call time and convert parameters if needed
@@ -124,7 +123,7 @@ export function createApiCall(
             ) {
               throw new Error(
                 'Using a function to determine retry eligibility is only supported with server streaming calls'
-              ); //TODO(Coleleah) add documentaion + test
+              ); //TODO(Coleleah) add documentaion
             }
           }
         }

@@ -18,7 +18,6 @@ import * as assert from 'assert';
 import {status} from '@grpc/grpc-js';
 import {afterEach, describe, it} from 'mocha';
 import * as sinon from 'sinon';
-import {PassThrough} from 'stream';
 
 import * as gax from '../../src/gax';
 import {GoogleError} from '../../src/googleError';
@@ -147,21 +146,17 @@ describe('createApiCall', () => {
     sinon.stub(retries, 'retryable').callsFake((func, retry): any => {
       try {
         assert.strictEqual(retry.retryCodesOrShouldRetryFn, overrideRetryCodes);
-        done();
+        return func;
       } catch (err) {
         done(err);
       }
       return func;
     });
 
-    const spy = sinon.spy((...args: Array<{}>) => {
-      assert.strictEqual(args.length, 3);
-      const s = new PassThrough({
-        objectMode: true,
-      });
-      return s;
-    });
-    const apiCall = createApiCall(spy, {
+    function func() {
+      done();
+    }
+    const apiCall = createApiCall(func, {
       settings: {
         retry: gax.createRetryOptions(initialRetryCodes, {
           initialRetryDelayMillis: 100,
@@ -183,35 +178,18 @@ describe('createApiCall', () => {
       }
     );
   });
-  // TODO(coleleah): might need to stub a different call for this one
-  it('errors when you try to override just custom retry.retryCodesOrShouldRetryFn with a function', done => {
-    console.log('IN THE TEST');
+  it('errors when you override just custom retry.retryCodesOrShouldRetryFn with a function on a non streaming call', async () => {
     function neverRetry() {
       return false;
     }
     const initialRetryCodes = [1];
     const overrideRetryCodes = neverRetry;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sinon.stub(retries, 'retryable').callsFake((func, retry): any => {
-      try {
-        console.log('here in test', retry);
-        assert.strictEqual(retry.retryCodesOrShouldRetryFn, [2]); //TODO(coleleah): fix timeout!!
-        done();
-      } catch (err) {
-        console.log('here in error');
-        done(err);
-      }
-      return func;
-    });
 
-    const spy = sinon.spy((...args: Array<{}>) => {
-      assert.strictEqual(args.length, 3);
-      const s = new PassThrough({
-        objectMode: true,
-      });
-      return s;
-    });
-    const apiCall = createApiCall(spy, {
+    function func() {
+      return Promise.resolve();
+    }
+
+    const apiCall = createApiCall(func, {
       settings: {
         retry: gax.createRetryOptions(initialRetryCodes, {
           initialRetryDelayMillis: 100,
@@ -223,13 +201,20 @@ describe('createApiCall', () => {
         }),
       },
     });
-
-    apiCall(
-      {},
-      {
-        retry: {
-          retryCodesOrShouldRetryFn: overrideRetryCodes,
-        },
+    await assert.rejects(
+      apiCall(
+        {},
+        {
+          retry: {
+            retryCodesOrShouldRetryFn: overrideRetryCodes,
+          },
+        }
+      ),
+      (err: Error) => {
+        assert.strictEqual(
+          err.message,
+          'Using a function to determine retry eligibility is only supported with server streaming calls'
+        );
       }
     );
   });
