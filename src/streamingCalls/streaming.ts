@@ -459,8 +459,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   resetStreams(requestStream: CancellableStream) {
-    const delayStream = null;
-
     if (requestStream) {
       requestStream.cancel && requestStream.cancel();
 

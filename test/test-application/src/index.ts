@@ -114,7 +114,17 @@ async function testShowcase() {
   await testWait(restClient);
 
   // Testing with newRetry being true
+  await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
+
+  await testServerStreamingRetriesWithShouldRetryFn(
+    grpcSequenceClientWithNewRetry
+  );
+
   await testServerStreamingRetrieswithRetryOptions(
+    grpcSequenceClientWithNewRetry
+  );
+
+  await testServerStreamingRetrieswithRetryRequestOptions(
     grpcSequenceClientWithNewRetry
   );
 
@@ -472,6 +482,63 @@ async function testWait(client: EchoClient) {
   assert.deepStrictEqual(response.content, request.success.content);
 }
 
+async function testServerStreamingRetryOptions(client: SequenceServiceClient) {
+  const finalData: string[] = [];
+  await new Promise<void>(async (resolve, _) => {
+    const backoffSettings = createBackoffSettings(
+      100,
+      1.2,
+      1000,
+      null,
+      1.5,
+      3000,
+      10000
+    );
+
+    const retryOptions = new RetryOptions([], backoffSettings);
+
+    const settings = {
+      retry: retryOptions,
+    };
+
+    client.initialize();
+
+    const request = createStreamingSequenceRequestFactory(
+      [Status.OK],
+      [0.1],
+      [11],
+      'This is testing the brand new and shiny StreamingSequence server 3'
+    );
+
+    const response = await client.createStreamingSequence(request);
+    const sequence = response[0];
+
+    const attemptRequest =
+      new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+    attemptRequest.name = sequence.name!;
+
+    const attemptStream = client.attemptStreamingSequence(
+      attemptRequest,
+      settings
+    );
+    attemptStream.on('data', (response: {content: string}) => {
+      finalData.push(response.content);
+    });
+    attemptStream.on('error', () => {
+      //Do Nothing
+    });
+    attemptStream.on('end', () => {
+      attemptStream.end();
+      resolve();
+    });
+  }).then(() => {
+    assert.equal(
+      finalData.join(' '),
+      'This is testing the brand new and shiny StreamingSequence server 3'
+    );
+  });
+}
+
 async function testServerStreamingRetrieswithRetryOptions(
   client: SequenceServiceClient
 ) {
@@ -515,17 +582,138 @@ async function testServerStreamingRetrieswithRetryOptions(
     );
     attemptStream.on('data', (response: {content: string}) => {
       finalData.push(response.content);
-      console.log(response.content);
     });
-    attemptStream.on('error', (e: any) => {
-      console.log('Error Caught :', e.code);
-      console.log('Error Message :', e.message);
+    attemptStream.on('error', () => {
+      //Do Nothing
     });
     attemptStream.on('end', () => {
+      attemptStream.end();
       resolve();
     });
   }).then(() => {
-    console.log('here');
+    assert.equal(
+      finalData.join(' '),
+      'This This is This is testing the brand new and shiny StreamingSequence server 3'
+    );
+  });
+}
+
+async function testServerStreamingRetriesWithShouldRetryFn(
+  client: SequenceServiceClient
+) {
+  const finalData: string[] = [];
+  await new Promise<void>(async (resolve, _) => {
+    const shouldRetryFn = function checkRetry(error: GoogleError) {
+      return [14, 4].includes(error.code!);
+    };
+
+    const backoffSettings = createBackoffSettings(
+      100,
+      1.2,
+      1000,
+      null,
+      1.5,
+      3000,
+      10000
+    );
+
+    const retryOptions = new RetryOptions(shouldRetryFn, backoffSettings);
+
+    const settings = {
+      retry: retryOptions,
+    };
+
+    client.initialize();
+
+    const request = createStreamingSequenceRequestFactory(
+      [Status.UNAVAILABLE, Status.DEADLINE_EXCEEDED, Status.OK],
+      [0.1, 0.1, 0.1],
+      [1, 2, 11],
+      'This is testing the brand new and shiny StreamingSequence server 3'
+    );
+
+    const response = await client.createStreamingSequence(request);
+    const sequence = response[0];
+
+    const attemptRequest =
+      new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+    attemptRequest.name = sequence.name!;
+
+    const attemptStream = client.attemptStreamingSequence(
+      attemptRequest,
+      settings
+    );
+    attemptStream.on('data', (response: {content: string}) => {
+      finalData.push(response.content);
+    });
+    attemptStream.on('error', () => {
+      //Do Nothing
+    });
+    attemptStream.on('end', () => {
+      attemptStream.end();
+      resolve();
+    });
+  }).then(() => {
+    assert.equal(
+      finalData.join(' '),
+      'This This is This is testing the brand new and shiny StreamingSequence server 3'
+    );
+  });
+}
+
+async function testServerStreamingRetrieswithRetryRequestOptions(
+  client: SequenceServiceClient
+) {
+  const finalData: string[] = [];
+  await new Promise<void>(async (resolve, _) => {
+    const retryRequestOptions = {
+      objectMode: true,
+      retries: 1,
+      maxRetryDelay: 70,
+      retryDelayMultiplier: 3,
+      totalTimeout: 650,
+      noResponseRetries: 3,
+      currentRetryAttempt: 0,
+      shouldRetryFn: function checkRetry(error: GoogleError) {
+        return [14, 4].includes(error.code!);
+      },
+    };
+
+    const settings = {
+      retryRequestOptions: retryRequestOptions,
+    };
+
+    client.initialize();
+
+    const request = createStreamingSequenceRequestFactory(
+      [Status.UNAVAILABLE, Status.DEADLINE_EXCEEDED, Status.OK],
+      [0.1, 0.1, 0.1],
+      [1, 2, 11],
+      'This is testing the brand new and shiny StreamingSequence server 3'
+    );
+
+    const response = await client.createStreamingSequence(request);
+    const sequence = response[0];
+
+    const attemptRequest =
+      new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+    attemptRequest.name = sequence.name!;
+
+    const attemptStream = client.attemptStreamingSequence(
+      attemptRequest,
+      settings
+    );
+    attemptStream.on('data', (response: {content: string}) => {
+      finalData.push(response.content);
+    });
+    attemptStream.on('error', () => {
+      // Do Nothing
+    });
+    attemptStream.on('end', () => {
+      attemptStream.end();
+      resolve();
+    });
+  }).then(() => {
     assert.equal(
       finalData.join(' '),
       'This This is This is testing the brand new and shiny StreamingSequence server 3'

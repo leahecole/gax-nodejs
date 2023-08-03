@@ -73,10 +73,10 @@ import {toLowerCamelCase} from './util';
  * @property {BackoffSettings} backoffSettings
  */
 export class RetryOptions {
-  retryCodesOrShouldRetryFn: number[] | ((responese: any) => boolean);
+  retryCodesOrShouldRetryFn: number[] | ((error: any) => boolean);
   backoffSettings: BackoffSettings;
   constructor(
-    retryCodesOrShouldRetryFn: number[] | (() => boolean),
+    retryCodesOrShouldRetryFn: number[] | ((error: any) => boolean),
     backoffSettings: BackoffSettings
   ) {
     this.retryCodesOrShouldRetryFn = retryCodesOrShouldRetryFn;
@@ -91,7 +91,7 @@ export interface RetryRequestOptions {
   retries?: number;
   noResponseRetries?: number;
   currentRetryAttempt?: number;
-  shouldRetryFn?: () => boolean;
+  shouldRetryFn?: (error: any) => boolean;
   maxRetryDelay?: number;
   retryDelayMultiplier?: number;
   totalTimeout?: number;
