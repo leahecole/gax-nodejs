@@ -201,22 +201,21 @@ describe('createApiCall', () => {
         }),
       },
     });
-    await assert.rejects(
-      apiCall(
+    try {
+      await apiCall(
         {},
         {
           retry: {
             retryCodesOrShouldRetryFn: overrideRetryCodes,
           },
         }
-      ),
-      (err: Error) => {
-        assert.strictEqual(
-          err.message,
-          'Using a function to determine retry eligibility is only supported with server streaming calls'
-        );
-      }
-    );
+      );
+    } catch (err: any) {
+      assert.strictEqual(
+        err.message,
+        'Using a function to determine retry eligibility is only supported with server streaming calls'
+      );
+    }
   });
 
   it('override just custom retry.backoffSettings', done => {
