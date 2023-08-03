@@ -1084,7 +1084,6 @@ it('emit error and retry three times', done => {
           return true;
         },
       };
-      // make the call with both options passed at call time
       apiCall(
         {},
         {
