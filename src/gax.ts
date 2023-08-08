@@ -84,6 +84,8 @@ export class RetryOptions {
   }
 }
 
+//TODO(coleleah): add docstring
+//TODO(galzahavi): add docstring info about getResumptionRequestFn
 export interface RetryRequestOptions {
   objectMode?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

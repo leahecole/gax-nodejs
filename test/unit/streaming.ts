@@ -1009,16 +1009,16 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
     );
   });
 });
-//TODO(coleleah): rename this describe
-describe('properly warns the user about server streaming retry behavior when gaxStreamingRetries is disabled', () => {
+//TODO(coleleah): consider refactoring these to use async/await
+describe('warns/errors about server streaming retry behavior when gaxStreamingRetries is disabled', () => {
   afterEach(() => {
     // restore 'call' stubs and 'warn' stubs
     sinon.restore();
   });
 
-  // NO RETRY BEHAVIOR ENABLED
-  it('throws a warning when retryRequestOptions are passed', done => {
-    const warnStub = sinon.stub(warnings, 'warn');
+    // NO RETRY BEHAVIOR ENABLED
+    it('throws a warning when retryRequestOptions are passed', done => {
+      const warnStub = sinon.stub(warnings, 'warn');
 
     // this exists to help resolve createApiCall
     sinon
