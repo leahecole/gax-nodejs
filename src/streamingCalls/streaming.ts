@@ -162,7 +162,10 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   /**
-   * TODO(galzahavi): Add Comments
+   * Helper function to handle total timeout + max retry check for server streaming retries
+   * @param {number} deadline - the current retry deadline
+   * @param {number} maxRetries - maximum total number of retries
+   * @param {number} totalTimeoutMillis - total timeout in milliseconds
    */
   timeoutAndMaxRetryCheck(
     deadline: number,
@@ -202,7 +205,14 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   /**
-   * TODO(galzahavi): Add Comments
+   * Error handler for server streaming retries
+   * @param {CancellableStream} stream - the stream being retried
+   * @param {RetryOptions} retry - Configures the exceptions upon which the
+   *   function should retry, and the parameters to the exponential backoff retry
+   *   algorithm.
+   * @param {RetryRequestOptions} retryRequestOptions - alternative way to configure exceptions on which the function
+   *   should retry - will be deprecated in a future release
+   * @param {Error} error - error to handle
    */
   streamHandoffErrorHandler(
     stream: CancellableStream,
@@ -272,7 +282,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
 
       this.destroy(newError);
     } else {
-      //TODO(coleleah): refactor to remove retryRequestOptions)
+      //TODO(coleleah): refactor to remove retryRequestOptions) - write tests, then do
       retryStream = this.retry(stream, retry, retryRequestOptions);
       this.stream = retryStream;
       return;
@@ -280,7 +290,15 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   /**
-   * TODO(galzahavi): Add Comments
+   * Used during server streaming retries to handle
+   * event forwarding, errors, and/or stream closure
+   * @param {CancellableStream} stream - the stream that we're doing the retry on
+   * @param {RetryOptions} retry - Configures the exceptions upon which the
+   *   function should retry, and the parameters to the exponential backoff retry
+   *   algorithm.
+   * @param {RetryRequestOptions} retryRequestOptions - alternative way to configure exceptions on which the function
+   *   should retry - will be deprecated in a future release
+   * @return {CancellableStream | undefined} //TODO(coleleah): more about this
    */
   streamHandoffHelper(
     stream: CancellableStream,
@@ -288,7 +306,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     retryRequestOptions: RetryRequestOptions
   ): CancellableStream | undefined {
     let enteredError = false;
-    const retryStream = this.stream;
+    const retryStream = this.stream; //TODO(coleleah): check the fact that this isn't used much
     const eventsToForward = ['metadata', 'response', 'status', 'data'];
     eventsToForward.forEach(event => {
       stream.on(event, this.emit.bind(this, event));
@@ -313,7 +331,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    * Forward events from an API request stream to the user's stream.
    * @param {Stream} stream - The API request stream.
    * @param {RetryOptions} retry - Configures the exceptions upon which the
-   *   function eshould retry, and the parameters to the exponential backoff retry
+   *   function should retry, and the parameters to the exponential backoff retry
    *   algorithm.
    */
 

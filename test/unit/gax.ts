@@ -72,7 +72,6 @@ const RETRY_DICT = {
   code_c: 3,
 };
 
-//TODO (coleleah): double check this logic, add additional tests
 function expectRetryOptions(obj: gax.RetryOptions) {
   assert.ok(obj instanceof Object);
   ['retryCodesOrShouldRetryFn', 'backoffSettings'].forEach(k =>
