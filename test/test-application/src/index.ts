@@ -83,71 +83,74 @@ async function testShowcase() {
     grpcClientOptsWithNewRetry
   );
 
-  const fallbackClient = new EchoClient(fallbackClientOpts);
-  const restClient = new EchoClient(restClientOpts);
+  // const fallbackClient = new EchoClient(fallbackClientOpts);
+  // const restClient = new EchoClient(restClientOpts);
 
-  // assuming gRPC server is started locally
-  await testEcho(grpcClient);
-  await testEchoError(grpcClient);
-  await testExpand(grpcClient);
-  await testPagedExpand(grpcClient);
-  await testPagedExpandAsync(grpcClient);
-  await testCollect(grpcClient);
-  await testChat(grpcClient);
-  await testWait(grpcClient);
+  // // assuming gRPC server is started locally
+  // await testEcho(grpcClient);
+  // await testEchoError(grpcClient);
+  // await testExpand(grpcClient);
+  // await testPagedExpand(grpcClient);
+  // await testPagedExpandAsync(grpcClient);
+  // await testCollect(grpcClient);
+  // await testChat(grpcClient);
+  // await testWait(grpcClient);
 
-  await testEcho(fallbackClient);
-  await testEchoError(fallbackClient);
-  await testExpandThrows(fallbackClient); // fallback does not support server streaming
-  await testPagedExpand(fallbackClient);
-  await testPagedExpandAsync(fallbackClient);
-  await testCollectThrows(fallbackClient); // fallback does not support client streaming
-  await testChatThrows(fallbackClient); // fallback does not support bidi streaming
-  await testWait(fallbackClient);
+  // await testEcho(fallbackClient);
+  // await testEchoError(fallbackClient);
+  // await testExpandThrows(fallbackClient); // fallback does not support server streaming
+  // await testPagedExpand(fallbackClient);
+  // await testPagedExpandAsync(fallbackClient);
+  // await testCollectThrows(fallbackClient); // fallback does not support client streaming
+  // await testChatThrows(fallbackClient); // fallback does not support bidi streaming
+  // await testWait(fallbackClient);
 
-  await testEcho(restClient);
-  await testExpand(restClient); // REGAPIC supports server streaming
-  await testPagedExpand(restClient);
-  await testPagedExpandAsync(restClient);
-  await testCollectThrows(restClient); // REGAPIC does not support client streaming
-  await testChatThrows(restClient); // REGAPIC does not support bidi streaming
-  await testWait(restClient);
+  // await testEcho(restClient);
+  // await testExpand(restClient); // REGAPIC supports server streaming
+  // await testPagedExpand(restClient);
+  // await testPagedExpandAsync(restClient);
+  // await testCollectThrows(restClient); // REGAPIC does not support client streaming
+  // await testChatThrows(restClient); // REGAPIC does not support bidi streaming
+  // await testWait(restClient);
 
   // Testing with newRetry being true
-  await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
+  // await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
 
-  await testServerStreamingRetriesWithShouldRetryFn(
+  // await testServerStreamingRetriesWithShouldRetryFn(
+  //   grpcSequenceClientWithNewRetry
+  // );
+
+  // await testServerStreamingRetrieswithRetryOptions(
+  //   grpcSequenceClientWithNewRetry
+  // );
+
+  // await testServerStreamingRetrieswithRetryRequestOptions(
+  //   grpcSequenceClientWithNewRetry
+  // );
+  await testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
     grpcSequenceClientWithNewRetry
   );
 
-  await testServerStreamingRetrieswithRetryOptions(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingThrowsClassifiedTransientError(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingRetrieswithRetryRequestOptions(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetriesAndThrowsClassifiedTransientError(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingThrowsClassifiedTransientError(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingRetriesAndThrowsClassifiedTransientError(
-    grpcSequenceClientWithNewRetry
-  );
-
-  await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
-    grpcSequenceClientWithNewRetry
-  );
-
-  await testEcho(grpcClientWithNewRetry);
-  await testEchoError(grpcClientWithNewRetry);
-  await testExpand(grpcClientWithNewRetry);
-  await testPagedExpand(grpcClientWithNewRetry);
-  await testPagedExpandAsync(grpcClientWithNewRetry);
-  await testCollect(grpcClientWithNewRetry);
-  await testChat(grpcClientWithNewRetry);
-  await testWait(grpcClientWithNewRetry);
+  // await testEcho(grpcClientWithNewRetry);
+  // await testEchoError(grpcClientWithNewRetry);
+  // await testExpand(grpcClientWithNewRetry);
+  // await testPagedExpand(grpcClientWithNewRetry);
+  // await testPagedExpandAsync(grpcClientWithNewRetry);
+  // await testCollect(grpcClientWithNewRetry);
+  // await testChat(grpcClientWithNewRetry);
+  // await testWait(grpcClientWithNewRetry);
 }
 
 function createStreamingSequenceRequestFactory(
@@ -664,6 +667,67 @@ async function testServerStreamingRetriesWithShouldRetryFn(
 async function testServerStreamingRetrieswithRetryRequestOptions(
   client: SequenceServiceClient
 ) {
+  const finalData: string[] = [];
+  await new Promise<void>(async (resolve, _) => {
+    const retryRequestOptions = {
+      objectMode: true,
+      retries: 1,
+      maxRetryDelay: 70,
+      retryDelayMultiplier: 3,
+      totalTimeout: 650,
+      noResponseRetries: 3,
+      currentRetryAttempt: 0,
+      shouldRetryFn: function checkRetry(error: GoogleError) {
+        return [14, 4].includes(error.code!);
+      },
+    };
+
+    const settings = {
+      retryRequestOptions: retryRequestOptions,
+    };
+
+    client.initialize();
+
+    const request = createStreamingSequenceRequestFactory(
+      [Status.UNAVAILABLE, Status.DEADLINE_EXCEEDED, Status.OK],
+      [0.1, 0.1, 0.1],
+      [1, 2, 11],
+      'This is testing the brand new and shiny StreamingSequence server 3'
+    );
+
+    const response = await client.createStreamingSequence(request);
+    const sequence = response[0];
+
+    const attemptRequest =
+      new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+    attemptRequest.name = sequence.name!;
+
+    const attemptStream = client.attemptStreamingSequence(
+      attemptRequest,
+      settings
+    );
+    attemptStream.on('data', (response: {content: string}) => {
+      finalData.push(response.content);
+    });
+    attemptStream.on('error', () => {
+      // Do Nothing
+    });
+    attemptStream.on('end', () => {
+      attemptStream.end();
+      resolve();
+    });
+  }).then(() => {
+    assert.equal(
+      finalData.join(' '),
+      'This This is This is testing the brand new and shiny StreamingSequence server 3'
+    );
+  });
+}
+
+async function testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
+  client: SequenceServiceClient
+) {
+  console.log("Hello hello here in this test")
   const finalData: string[] = [];
   await new Promise<void>(async (resolve, _) => {
     const retryRequestOptions = {

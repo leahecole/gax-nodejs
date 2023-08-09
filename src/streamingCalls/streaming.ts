@@ -137,7 +137,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       typeof retryRequestOptions.getResumptionRequestFn! === 'function' &&
       retryRequestOptions.getResumptionRequestFn!(this.argument)
     ) {
-      retryArgument = retryRequestOptions.getResumptionRequestFn!(
+      retryArgument = retryRequestOptions.getResumptionRequestFn!( //TODO: move to retryOptions
         this.argument
       );
     }
@@ -153,7 +153,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     const retryStream = this.streamHandoffHelper(
       new_stream,
       retry,
-      retryRequestOptions
+      retryRequestOptions //TODO(remove)
     );
     if (retryStream !== undefined) {
       return retryStream;
@@ -574,7 +574,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     this.stream = stream;
 
     if (this.new_retry) {
-      this.forwardEventsNewImplementation(stream, retry, retryRequestOptions);
+      this.forwardEventsNewImplementation(stream, retry, retryRequestOptions); //TODO(coleleah): remove
     } else {
       this.forwardEvents(stream);
     }
