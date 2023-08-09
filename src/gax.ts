@@ -84,8 +84,22 @@ export class RetryOptions {
   }
 }
 
-//TODO(coleleah): add docstring
-//TODO(galzahavi): add docstring info about getResumptionRequestFn
+/**
+ * Per-call configurable settings for working with retry-request
+ * See the repo README for more about the parameters
+ * https://github.com/googleapis/retry-request
+ * Will be deprecated in a future release. Only relevant to server streaming calls
+ * @typedef {Object} RetryOptions
+ * @property {boolean} objectMode - when true utilizes object mode in streams
+ * @property {request} request - the request to retry
+ * @property {number} noResponseRetries - number of times to retry on no response
+ * @property {number} currentRetryAttempt - what # retry attempt retry-request is on
+ * @property {Function} shouldRetryFn - determines whether to retry, returns a boolean
+ * @property {number} maxRetryDelay - maximum retry delay in seconds
+ * @property {number} retryDelayMultiplier - multiplier to increase the delay in between completion of failed requests
+ * @property {number} totalTimeout - total timeout in seconds
+ * @property {Function} getResumptionRequestFn - function used to determine stream resumption strategy. Returns the new request.
+ */
 export interface RetryRequestOptions {
   objectMode?: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -230,7 +244,6 @@ export class CallSettings {
         retry.retryCodesOrShouldRetryFn !== undefined
       ) {
         // if it's an array of retry codes, make sure it has an element or check if it's a function
-        // TODO(coleleah): should we even support overriding retry codes or function w/ function or backwards compatible?
         if (
           (retry.retryCodesOrShouldRetryFn instanceof Array &&
             retry.retryCodesOrShouldRetryFn.length > 0) ||

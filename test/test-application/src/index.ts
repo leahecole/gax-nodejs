@@ -31,7 +31,7 @@ import {
   RetryOptions,
 } from 'google-gax';
 import stream = require('stream');
-
+//TODO(coleleah): tests with resumption strategy
 async function testShowcase() {
   const grpcClientOpts = {
     grpc,
