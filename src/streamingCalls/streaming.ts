@@ -298,7 +298,6 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    *   algorithm.
    * @param {RetryRequestOptions} retryRequestOptions - alternative way to configure exceptions on which the function
    *   should retry - will be deprecated in a future release
-   * @return {CancellableStream | undefined} //TODO(coleleah): more about this
    */
   streamHandoffHelper(
     stream: CancellableStream,
