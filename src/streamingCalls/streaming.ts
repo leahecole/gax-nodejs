@@ -304,7 +304,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     stream: CancellableStream,
     retry: RetryOptions,
     retryRequestOptions: RetryRequestOptions
-  ): undefined {
+  ): void {
     let enteredError = false;
     const eventsToForward = ['metadata', 'response', 'status', 'data'];
     eventsToForward.forEach(event => {
