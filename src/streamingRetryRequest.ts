@@ -78,6 +78,7 @@ export function streamingRetryRequest(
   opts: any = null,
   callback: any = null
 ) {
+  console.log("STREAMINGRETRYREQUEST")
   const streamMode = typeof arguments[arguments.length - 1] !== 'function';
 
   if (typeof opts === 'function') {
@@ -125,6 +126,7 @@ export function streamingRetryRequest(
   }
 
   function makeRequest() {
+    console.log("\n\n in makerequest \n\n")
     if (streamMode) {
       streamResponseHandled = false;
 

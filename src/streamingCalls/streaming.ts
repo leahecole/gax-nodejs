@@ -432,6 +432,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     });
 
     stream.on('error', error => {
+      console.log("IN STREAMING 435")
       const timeout = retry.backoffSettings.totalTimeoutMillis;
       const maxRetries = retry.backoffSettings.maxRetries!;
       if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) {
@@ -509,6 +510,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         this.stream = stream;
         this.setReadable(stream);
       } else if (this.new_retry) {
+        // TODO(coleleah): properly warn
         console.log(
           'WARNING: You are using an experimental streamingRetryRequest'
         );
@@ -528,7 +530,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
                 this._callback
               ) as CancellableStream;
               this.stream = stream;
-
+              console.log("533 in streaming")
               this.stream = this.forwardEventsNewImplementation(
                 stream,
                 retry,
@@ -542,6 +544,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
 
         this.setReadable(retryStream);
       } else {
+        console.log("NORMAL RETRIES??")
         const retryStream = retryRequest(null, {
           objectMode: true,
           request: () => {

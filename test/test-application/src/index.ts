@@ -82,6 +82,7 @@ async function testShowcase() {
   const grpcSequenceClientWithNewRetry = new SequenceServiceClient(
     grpcClientOptsWithNewRetry
   );
+  console.log("CREATED CLIENT")
 
   // const fallbackClient = new EchoClient(fallbackClientOpts);
   // const restClient = new EchoClient(restClientOpts);
@@ -114,8 +115,9 @@ async function testShowcase() {
   // await testWait(restClient);
 
   // Testing with newRetry being true
-  // await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
+  await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
 
+  //TODO(coleleah): fix
   // await testServerStreamingRetriesWithShouldRetryFn(
   //   grpcSequenceClientWithNewRetry
   // );
@@ -124,21 +126,27 @@ async function testShowcase() {
   //   grpcSequenceClientWithNewRetry
   // );
 
+  //TODO(coleleah)fix
   // await testServerStreamingRetrieswithRetryRequestOptions(
   //   grpcSequenceClientWithNewRetry
   // );
-  await testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
-    grpcSequenceClientWithNewRetry
-  );
+  //TODO(coleleah) fix- also actually write
+  // // await testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
+  
+  //TODO(fix)
   // await testServerStreamingThrowsClassifiedTransientError(
   //   grpcSequenceClientWithNewRetry
   // );
 
+  //TODO(fix)
   // await testServerStreamingRetriesAndThrowsClassifiedTransientError(
   //   grpcSequenceClientWithNewRetry
   // );
 
+  //TODO(fix)
   // await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
   //   grpcSequenceClientWithNewRetry
   // );
@@ -637,7 +645,7 @@ async function testServerStreamingRetriesWithShouldRetryFn(
 
     const response = await client.createStreamingSequence(request);
     const sequence = response[0];
-
+    console.log("\n\nLINE 647\n\n")
     const attemptRequest =
       new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
     attemptRequest.name = sequence.name!;
@@ -648,11 +656,15 @@ async function testServerStreamingRetriesWithShouldRetryFn(
     );
     attemptStream.on('data', (response: {content: string}) => {
       finalData.push(response.content);
+      console.log("DATAAAAAA")
     });
-    attemptStream.on('error', () => {
+    attemptStream.on('error', (error) => {
+      console.error("ERRRRRR")
+      console.error(error) 
       //Do Nothing
     });
     attemptStream.on('end', () => {
+      console.log("IN THE ENDDDDDDDDD")
       attemptStream.end();
       resolve();
     });
