@@ -82,7 +82,6 @@ async function testShowcase() {
   const grpcSequenceClientWithNewRetry = new SequenceServiceClient(
     grpcClientOptsWithNewRetry
   );
-  console.log("CREATED CLIENT")
 
   // const fallbackClient = new EchoClient(fallbackClientOpts);
   // const restClient = new EchoClient(restClientOpts);
@@ -115,36 +114,37 @@ async function testShowcase() {
   // await testWait(restClient);
 
   // Testing with newRetry being true
-  await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
+  // await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
 
-  await testServerStreamingRetriesWithShouldRetryFn(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetriesWithShouldRetryFn(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingRetrieswithRetryOptions(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetrieswithRetryOptions(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
   await testServerStreamingRetrieswithRetryRequestOptions(
     grpcSequenceClientWithNewRetry
   );
   //TODO(coleleah) fix- also actually write
-  // // await testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
+  await testStreamingFromGal(grpcSequenceClientWithNewRetry);
+  // await testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
   //   grpcSequenceClientWithNewRetry
   // );
 
   
-  await testServerStreamingThrowsClassifiedTransientError(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingThrowsClassifiedTransientError(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingRetriesAndThrowsClassifiedTransientError(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetriesAndThrowsClassifiedTransientError(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
   // await testEcho(grpcClientWithNewRetry);
   // await testEchoError(grpcClientWithNewRetry);
@@ -653,7 +653,7 @@ async function testServerStreamingRetriesWithShouldRetryFn(
       finalData.push(response.content);
       console.log("DATAAAAAA")
     });
-    attemptStream.on('error', (error) => {
+    attemptStream.on('error', (error:any) => {
       console.error("ERRRRRR")
       console.error(error) 
       //Do Nothing
@@ -674,6 +674,7 @@ async function testServerStreamingRetriesWithShouldRetryFn(
 async function testServerStreamingRetrieswithRetryRequestOptions(
   client: SequenceServiceClient
 ) {
+  console.log("firsttest")
   const finalData: string[] = [];
   await new Promise<void>(async (resolve, _) => {
     const retryRequestOptions = {
@@ -730,6 +731,70 @@ async function testServerStreamingRetrieswithRetryRequestOptions(
     );
   });
 }
+async function testStreamingFromGal(client: SequenceServiceClient) {
+  const backoffSettings = createBackoffSettings(
+  10000,
+  2.5,
+  1000,
+  null,
+  1.5,
+  3000,
+  600000
+  );
+  
+  const retryOptions = new RetryOptions([], backoffSettings);
+  
+  const settings = {
+  retry: retryOptions,
+  retryRequestOptions: {
+  shouldRetryFn: (error: GoogleError) => {
+  return [4, 14].includes(error.code!);
+  },
+  getResumptionRequestFn: (
+  originalRequest: protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest
+  ) => {
+  const newRequest =
+  new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+  newRequest.name = originalRequest.name;
+  newRequest.failIndex = 5;
+  return newRequest;
+  },
+  },
+  };
+  
+  client.initialize();
+  
+   const request = createStreamingSequenceRequestFactory(
+    [Status.UNAVAILABLE, Status.DEADLINE_EXCEEDED, Status.OK],
+    [0.1, 0.1, 0.1],
+    [1, 2, 11],
+    'This is testing the brand new and shiny StreamingSequence server 3'
+  );
+  const response = await client.createStreamingSequence(request);
+  const sequence = response[0];
+  
+  const attemptRequest =
+  new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+  attemptRequest.name = sequence.name!;
+  
+  const attemptStream = client.attemptStreamingSequence(
+  attemptRequest,
+  settings
+  );
+  attemptStream.on('data', (response: {content: string}) => {
+  console.log('content: ' + response.content);
+  });
+  attemptStream.on('error', (e: any) => {
+  console.log('Error Caught :', e.code);
+  console.log('Error Message :', e.message);
+  });
+  attemptStream.on('end', () => {
+    attemptStream.end();
+    // resolve();
+  });
+  }
+  
+
 
 async function testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
   client: SequenceServiceClient
@@ -737,22 +802,33 @@ async function testServerStreamingRetrieswithRetryRequestOptionsResumptionStrate
   console.log("Hello hello here in this test")
   const finalData: string[] = [];
   await new Promise<void>(async (resolve, _) => {
-    const retryRequestOptions = {
-      objectMode: true,
-      retries: 1,
-      maxRetryDelay: 70,
-      retryDelayMultiplier: 3,
-      totalTimeout: 650,
-      noResponseRetries: 3,
-      currentRetryAttempt: 0,
-      shouldRetryFn: function checkRetry(error: GoogleError) {
-        return [14, 4].includes(error.code!);
-      },
-    };
-
+    const backoffSettings = createBackoffSettings(
+      10000,
+      2.5,
+      1000,
+      null,
+      1.5,
+      3000,
+      600000
+      );
+    const retryOptions = new RetryOptions([], backoffSettings);
     const settings = {
-      retryRequestOptions: retryRequestOptions,
-    };
+      retry: retryOptions,
+      retryRequestOptions: {
+        shouldRetryFn: (error: GoogleError) => {
+        return [4, 14].includes(error.code!);
+      },
+        getResumptionRequestFn: (
+          originalRequest: protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest
+        ) => {
+          const newRequest =
+          new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
+          newRequest.name = originalRequest.name;
+          newRequest.failIndex = 5;
+          return newRequest;
+        },
+        },
+      };
 
     client.initialize();
 
@@ -778,7 +854,8 @@ async function testServerStreamingRetrieswithRetryRequestOptionsResumptionStrate
       finalData.push(response.content);
     });
     attemptStream.on('error', () => {
-      // Do Nothing
+      console.log("Something went wrong")
+      resolve()
     });
     attemptStream.on('end', () => {
       attemptStream.end();

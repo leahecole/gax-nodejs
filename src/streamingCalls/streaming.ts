@@ -133,21 +133,28 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     retryRequestOptions: RetryRequestOptions
   ) {
     let retryArgument = this.argument!;
+    console.log("in streaming retry")
+    // console.log("retry", retry)
+    // console.log("rro", retryRequestOptions)
+    //TODO(coleleah): add error checking for a crappy resumption function 
     if (
       typeof retryRequestOptions.getResumptionRequestFn! === 'function' &&
       retryRequestOptions.getResumptionRequestFn!(this.argument)
     ) {
+      console.log("resumption")
       retryArgument = retryRequestOptions.getResumptionRequestFn!( //TODO: move to retryOptions
         this.argument
       );
     }
 
     this.resetStreams(stream);
+    console.log("after resetStreams")
 
     const new_stream = this.apiCall!(
       retryArgument,
       this._callback
     ) as CancellableStream;
+    console.log("newstream")
     this.stream = new_stream;
 
     const retryStream = this.streamHandoffHelper(
@@ -158,6 +165,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     if (retryStream !== undefined) {
       return retryStream;
     }
+    console.log('right before newstream')
     return new_stream;
   }
 
@@ -220,6 +228,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     retryRequestOptions: RetryRequestOptions,
     error: Error
   ): void {
+    console.log("streamhandoff error handler")
     let retryStream = this.stream;
     const delayMult = retry.backoffSettings.retryDelayMultiplier;
     const maxDelay = retry.backoffSettings.maxRetryDelayMillis;
@@ -282,8 +291,10 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
 
       this.destroy(newError);
     } else {
+      console.log("else294")
       //TODO(coleleah): refactor to remove retryRequestOptions) - write tests, then do
       retryStream = this.retry(stream, retry, retryRequestOptions);
+      console.log("afterRetryStream)")
       this.stream = retryStream;
       return;
     }
@@ -304,18 +315,22 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     retry: RetryOptions,
     retryRequestOptions: RetryRequestOptions
   ): void {
+    console.log("in stream handoff helper")
     let enteredError = false;
     const eventsToForward = ['metadata', 'response', 'status', 'data'];
     eventsToForward.forEach(event => {
+      console.log("eventstoforward")
       stream.on(event, this.emit.bind(this, event));
     });
 
     stream.on('error', error => {
+      console.log("error in handoff helper");
       enteredError = true;
       this.streamHandoffErrorHandler(stream, retry, retryRequestOptions, error);
     });
 
     stream.on('end', () => {
+      console.log("end")
       if (!enteredError) {
         enteredError = true;
         this.emit('end');
@@ -374,6 +389,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   }
 
   defaultShouldRetry(error: GoogleError, retry: RetryOptions) {
+    console.log('defaultShouldretry')
     if (
       retry.retryCodesOrShouldRetryFn instanceof Array &&
       retry.retryCodesOrShouldRetryFn.indexOf(error!.code!) < 0
@@ -433,16 +449,22 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
 
     stream.on('error', error => {
       console.log("IN STREAMING 435")
+      console.log(retry, retryRequestOptions)
       const timeout = retry.backoffSettings.totalTimeoutMillis;
       const maxRetries = retry.backoffSettings.maxRetries!;
-      if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) {
+      if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) { //TODO(coleleah): consider the case where these are undefined
         const e = GoogleError.parseGRPCStatusDetails(error);
+        console.log('after error')
         let shouldRetry = this.defaultShouldRetry(e!, retry);
         if (typeof retry.retryCodesOrShouldRetryFn! === 'function') {
+          console.log("it's a function")
           shouldRetry = retry.retryCodesOrShouldRetryFn!(e!);
         }
+        console.log("shoudlrtry", shouldRetry)
+        console.log("in here")
 
         if (shouldRetry) {
+          console.log("should retry")
           if (maxRetries && timeout!) {
             const newError = new GoogleError(
               'Cannot set both totalTimeoutMillis and maxRetries ' +
@@ -453,7 +475,9 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
             this.destroy(newError);
             return;
           } else {
+            console.log("in else")
             retryStream = this.retry(stream, retry, retryRequestOptions); //TODO(coleleah): remove retryrequestOptions
+            console.log("480")
             this.stream = retryStream;
             return retryStream;
           }
@@ -468,9 +492,13 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
           return;
         }
       } else {
-        return GoogleError.parseGRPCStatusDetails(error);
+        console.log('hi hi hi')
+        const e = GoogleError.parseGRPCStatusDetails(error);
+        console.log("e", e)
+        return e;
       }
     });
+    console.log("before return retrystream")
     return retryStream;
   }
 

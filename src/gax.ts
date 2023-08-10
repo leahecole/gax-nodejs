@@ -363,7 +363,11 @@ export function checkRetryOptions(
         options.retryRequestOptions !== undefined
       ) {
         //TODO(coleleah): link to documentation when it exists
-        throw new Error('Only one of retry or retryRequestOptions may be set');
+        //TODO(coleleah): reenable this error after you've moved resumption to retryOptions
+        // throw new Error('Only one of retry or retryRequestOptions may be set');
+        options.retry!.retryCodesOrShouldRetryFn = options.retryRequestOptions.shouldRetryFn
+
+        // console.log("temp")
       } else {
         if (options.retryRequestOptions !== undefined) {
           // // Retry settings
@@ -435,7 +439,8 @@ export function checkRetryOptions(
             backoffSettings
           );
           options.retry = convertedRetryOptions;
-          delete options.retryRequestOptions; // completely remove them to avoid any further confusion
+          //TODO(coleleah): put back once we move resumption logic to retryOptions
+          // delete options.retryRequestOptions; // completely remove them to avoid any further confusion
           warn(
             'retry_request_options',
             'retryRequestOptions will be deprecated in a future release. Please use retryOptions to pass retry options at call time',
