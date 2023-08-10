@@ -117,39 +117,34 @@ async function testShowcase() {
   // Testing with newRetry being true
   await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
 
-  //TODO(coleleah): fix
-  // await testServerStreamingRetriesWithShouldRetryFn(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetriesWithShouldRetryFn(
+    grpcSequenceClientWithNewRetry
+  );
 
-  // await testServerStreamingRetrieswithRetryOptions(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetrieswithRetryOptions(
+    grpcSequenceClientWithNewRetry
+  );
 
-  //TODO(coleleah)fix
-  // await testServerStreamingRetrieswithRetryRequestOptions(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetrieswithRetryRequestOptions(
+    grpcSequenceClientWithNewRetry
+  );
   //TODO(coleleah) fix- also actually write
   // // await testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
   //   grpcSequenceClientWithNewRetry
   // );
 
   
-  //TODO(fix)
-  // await testServerStreamingThrowsClassifiedTransientError(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingThrowsClassifiedTransientError(
+    grpcSequenceClientWithNewRetry
+  );
 
-  //TODO(fix)
-  // await testServerStreamingRetriesAndThrowsClassifiedTransientError(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetriesAndThrowsClassifiedTransientError(
+    grpcSequenceClientWithNewRetry
+  );
 
-  //TODO(fix)
-  // await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
+    grpcSequenceClientWithNewRetry
+  );
 
   // await testEcho(grpcClientWithNewRetry);
   // await testEchoError(grpcClientWithNewRetry);

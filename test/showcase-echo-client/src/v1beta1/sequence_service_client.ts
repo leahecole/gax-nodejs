@@ -187,6 +187,7 @@ export class SequenceServiceClient {
 
     // Some of the methods on this service provide streaming responses.
     // Provide descriptors for these.
+    //TODO(coleleah): ensure this parameter gets generated when this is merged in gax
     this.descriptors.stream = {
       attemptStreamingSequence: new this._gaxModule.StreamDescriptor(this._gaxModule.StreamType.SERVER_STREAMING, opts.fallback === 'rest', this._opts.newRetry)
     };
