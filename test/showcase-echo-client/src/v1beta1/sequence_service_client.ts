@@ -665,6 +665,7 @@ export class SequenceServiceClient {
  * @param {Object} request
  *   The request object that will be sent.
  * @param {string} request.name
+ * @param {number} [request.failIndex]
  * @param {object} [options]
  *   Call options. See {@link https://googleapis.dev/nodejs/google-gax/latest/interfaces/CallOptions.html|CallOptions} for more details.
  * @returns {Stream}

@@ -684,6 +684,8 @@ export class EchoClient {
  *   The content that will be split into words and returned on the stream.
  * @param {google.rpc.Status} request.error
  *   The error that is thrown after all words are sent on the stream.
+ * @param {google.protobuf.Duration} request.streamWaitTime
+ *  The wait time between each server streaming messages
  * @param {object} [options]
  *   Call options. See {@link https://googleapis.dev/nodejs/google-gax/latest/interfaces/CallOptions.html|CallOptions} for more details.
  * @returns {Stream}

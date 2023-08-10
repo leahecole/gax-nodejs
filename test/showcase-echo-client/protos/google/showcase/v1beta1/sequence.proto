@@ -84,7 +84,7 @@ service SequenceService {
     post: "/v1beta1/{name=streamingSequences/*}:stream"
       body: "*"
     };
-    option (google.api.method_signature) = "name,content,error";
+    option (google.api.method_signature) = "name";
   };
 }
 
@@ -166,7 +166,6 @@ message StreamingSequenceReport {
     // The status returned to the attempt.
     google.rpc.Status status = 5;
 
-    string content_sent = 6;
   }
 
   // The set of RPC attempts received by the server for a Sequence.
@@ -218,6 +217,7 @@ message AttemptSequenceRequest {
     (google.api.resource_reference).type = "showcase.googleapis.com/Sequence",
     (google.api.field_behavior) = REQUIRED
   ];
+
 }
 
 message AttemptStreamingSequenceRequest {
@@ -225,7 +225,11 @@ message AttemptStreamingSequenceRequest {
     (google.api.resource_reference).type = "showcase.googleapis.com/StreamingSequence",
     (google.api.field_behavior) = REQUIRED
   ];
-
+  
+  int32 fail_index = 2 [
+    (google.api.resource_reference).type = "showcase.googleapis.com/Sequence",
+    (google.api.field_behavior) = OPTIONAL
+  ];
 }
 
 // The response message for the Echo methods.
