@@ -437,7 +437,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       const maxRetries = retry.backoffSettings.maxRetries!;
       if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) {
         const e = GoogleError.parseGRPCStatusDetails(error);
-        let shouldRetry = this.defaultShouldRetry(e!, retry);
+        let shouldRetry = this.defaultShouldRetry(e!, retry); //TODO(coleleah): check that this validates error codes right - I think it accepts all error codes? 
         if (typeof retry.retryCodesOrShouldRetryFn! === 'function') {
           shouldRetry = retry.retryCodesOrShouldRetryFn!(e!);
         }
