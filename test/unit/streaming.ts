@@ -414,7 +414,6 @@ describe('streaming', () => {
       s.push(null);
       s.on('end', () => {
         setTimeout(() => {
-          console.log('emit status event');
           s.emit('status', expectedStatus);
         }, 10);
       });
@@ -570,7 +569,6 @@ describe('streaming', () => {
         objectMode: true,
       });
       setImmediate(() => {
-        console.log(counter);
         s.push('Hello');
         s.push('World');
         switch (counter) {

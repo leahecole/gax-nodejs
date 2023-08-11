@@ -367,7 +367,6 @@ export function checkRetryOptions(
         // throw new Error('Only one of retry or retryRequestOptions may be set');
         options.retry!.retryCodesOrShouldRetryFn = options.retryRequestOptions.shouldRetryFn
 
-        // console.log("temp")
       } else {
         if (options.retryRequestOptions !== undefined) {
           // // Retry settings

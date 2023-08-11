@@ -250,7 +250,6 @@ export class GoogleErrorDecoder {
             errorInfo = decodedDetail as unknown as ErrorInfo;
           }
         } catch (err) {
-          console.log("257catch")
           // cannot decode detail, likely because of the unknown type - just skip it
         }
       }
