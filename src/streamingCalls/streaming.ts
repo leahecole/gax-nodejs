@@ -134,12 +134,13 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   ) {
     let retryArgument = this.argument!;
 
-    //TODO(coleleah): add error checking for a crappy resumption function 
+    //TODO(coleleah): add error checking for a crappy resumption function
     if (
       typeof retryRequestOptions.getResumptionRequestFn! === 'function' &&
       retryRequestOptions.getResumptionRequestFn!(this.argument)
     ) {
-      retryArgument = retryRequestOptions.getResumptionRequestFn!( //TODO: move to retryOptions
+      retryArgument = retryRequestOptions.getResumptionRequestFn!(
+        //TODO: move to retryOptions
         this.argument
       );
     }
@@ -436,7 +437,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     stream.on('error', error => {
       const timeout = retry.backoffSettings.totalTimeoutMillis;
       const maxRetries = retry.backoffSettings.maxRetries!;
-      if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) { //TODO(coleleah): consider the case where these are undefined
+      if ((maxRetries && maxRetries > 0) || (timeout && timeout > 0)) {
+        //TODO(coleleah): consider the case where these are undefined
         const e = GoogleError.parseGRPCStatusDetails(error);
         let shouldRetry = this.defaultShouldRetry(e!, retry);
         if (typeof retry.retryCodesOrShouldRetryFn! === 'function') {

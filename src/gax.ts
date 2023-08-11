@@ -365,8 +365,8 @@ export function checkRetryOptions(
         //TODO(coleleah): link to documentation when it exists
         //TODO(coleleah): reenable this error after you've moved resumption to retryOptions
         // throw new Error('Only one of retry or retryRequestOptions may be set');
-        options.retry!.retryCodesOrShouldRetryFn = options.retryRequestOptions.shouldRetryFn
-
+        options.retry!.retryCodesOrShouldRetryFn =
+          options.retryRequestOptions.shouldRetryFn;
       } else {
         if (options.retryRequestOptions !== undefined) {
           // // Retry settings
