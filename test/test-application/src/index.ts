@@ -967,13 +967,13 @@ async function testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
 }
 
 async function main() {
-  // const showcaseServer = new ShowcaseServer();
-  // try {
-  //   await showcaseServer.start();
+  const showcaseServer = new ShowcaseServer();
+  try {
+    await showcaseServer.start();
     await testShowcase();
-//   } finally {
-//     showcaseServer.stop();
-//   }
+  } finally {
+    showcaseServer.stop();
+  }
 }
 
 main();
