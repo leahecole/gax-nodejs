@@ -71,16 +71,20 @@ import {toLowerCamelCase} from './util';
  * @typedef {Object} RetryOptions
  * @property {String[] | (function)} retryCodesOrShouldRetryFn
  * @property {BackoffSettings} backoffSettings
+ * @property {(function)} getResumptionRequestFn
  */
 export class RetryOptions {
   retryCodesOrShouldRetryFn: number[] | ((error: any) => boolean);
   backoffSettings: BackoffSettings;
+  getResumptionRequestFn?: (response: any) => any;
   constructor(
     retryCodesOrShouldRetryFn: number[] | ((error: any) => boolean),
-    backoffSettings: BackoffSettings
+    backoffSettings: BackoffSettings,
+    getResumptionRequestFn?: (response: any) => any
   ) {
     this.retryCodesOrShouldRetryFn = retryCodesOrShouldRetryFn;
     this.backoffSettings = backoffSettings;
+    this.getResumptionRequestFn = getResumptionRequestFn;
   }
 }
 
@@ -111,7 +115,7 @@ export interface RetryRequestOptions {
   maxRetryDelay?: number;
   retryDelayMultiplier?: number;
   totalTimeout?: number;
-  getResumptionRequestFn?: (response: any) => any;
+  // getResumptionRequestFn?: (response: any) => any;
 }
 
 /**
@@ -364,9 +368,9 @@ export function checkRetryOptions(
       ) {
         //TODO(coleleah): link to documentation when it exists
         //TODO(coleleah): reenable this error after you've moved resumption to retryOptions
-        // throw new Error('Only one of retry or retryRequestOptions may be set');
-        options.retry!.retryCodesOrShouldRetryFn =
-          options.retryRequestOptions.shouldRetryFn;
+        throw new Error('Only one of retry or retryRequestOptions may be set');
+        // options.retry!.retryCodesOrShouldRetryFn =
+        //   options.retryRequestOptions.shouldRetryFn;
       } else {
         if (options.retryRequestOptions !== undefined) {
           // // Retry settings
@@ -435,7 +439,7 @@ export function checkRetryOptions(
 
           const convertedRetryOptions = createRetryOptions(
             retryCodesOrShouldRetryFn,
-            backoffSettings
+            backoffSettings,
           );
           options.retry = convertedRetryOptions;
           //TODO(coleleah): put back once we move resumption logic to retryOptions
@@ -475,16 +479,19 @@ export function checkRetryOptions(
  *   upon which a retry should be attempted.
  * @param {BackoffSettings} backoffSettings - configures the retry
  *   exponential backoff algorithm.
+ * @param {function} getResumptionRequestFn - a function with a resumption strategy
  * @return {RetryOptions} A new RetryOptions object.
  *
  */
 export function createRetryOptions(
   retryCodesOrShouldRetryFn: number[] | ((response: any) => boolean),
-  backoffSettings: BackoffSettings
+  backoffSettings: BackoffSettings,
+  getResumptionRequestFn?: (response: any) => any
 ): RetryOptions {
   return {
     retryCodesOrShouldRetryFn,
     backoffSettings,
+    getResumptionRequestFn
   };
 }
 
@@ -702,7 +709,7 @@ function mergeRetryOptions(
     return null;
   }
 
-  if (!overrides.retryCodesOrShouldRetryFn && !overrides.backoffSettings) {
+  if (!overrides.retryCodesOrShouldRetryFn && !overrides.backoffSettings && !overrides.getResumptionRequestFn) {
     return retry;
   }
 
@@ -713,7 +720,9 @@ function mergeRetryOptions(
   const backoffSettings = overrides.backoffSettings
     ? overrides.backoffSettings
     : retry.backoffSettings;
-  return createRetryOptions(codesOrFunction!, backoffSettings!);
+
+  const getResumptionRequestFn = overrides.getResumptionRequestFn ? overrides.getResumptionRequestFn : retry.getResumptionRequestFn; //TODO(coleleah): test on undefined 
+  return createRetryOptions(codesOrFunction!, backoffSettings!, getResumptionRequestFn!);
 }
 
 export interface ServiceConfig {

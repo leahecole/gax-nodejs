@@ -136,10 +136,10 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
 
     //TODO(coleleah): add error checking for a crappy resumption function
     if (
-      typeof retryRequestOptions.getResumptionRequestFn! === 'function' &&
-      retryRequestOptions.getResumptionRequestFn!(this.argument)
+      typeof retry.getResumptionRequestFn! === 'function' &&
+      retry.getResumptionRequestFn!(this.argument)
     ) {
-      retryArgument = retryRequestOptions.getResumptionRequestFn!(
+      retryArgument = retry.getResumptionRequestFn!(
         //TODO: move to retryOptions
         this.argument
       );
