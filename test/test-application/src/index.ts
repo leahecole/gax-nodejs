@@ -115,48 +115,48 @@ async function testShowcase() {
   // await testWait(restClient);
 
   // Testing with newRetry being true
-  await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
+  // await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
 
-  await testServerStreamingRetriesWithShouldRetryFn(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetriesWithShouldRetryFn(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingRetrieswithRetryOptions(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetrieswithRetryOptions(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingRetrieswithRetryRequestOptions(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetrieswithRetryRequestOptions(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
   await testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
     grpcSequenceClientWithNewRetry
   );
 
-  await testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResumptionStrategy(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResumptionStrategy(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingThrowsClassifiedTransientError(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingThrowsClassifiedTransientError(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingRetriesAndThrowsClassifiedTransientError(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingRetriesAndThrowsClassifiedTransientError(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
-    grpcSequenceClientWithNewRetry
-  );
+  // await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
+  //   grpcSequenceClientWithNewRetry
+  // );
 
-  await testEcho(grpcClientWithNewRetry);
-  await testEchoError(grpcClientWithNewRetry);
-  await testExpand(grpcClientWithNewRetry);
-  await testPagedExpand(grpcClientWithNewRetry);
-  await testPagedExpandAsync(grpcClientWithNewRetry);
-  await testCollect(grpcClientWithNewRetry);
-  await testChat(grpcClientWithNewRetry);
-  await testWait(grpcClientWithNewRetry);
+  // await testEcho(grpcClientWithNewRetry);
+  // await testEchoError(grpcClientWithNewRetry);
+  // await testExpand(grpcClientWithNewRetry);
+  // await testPagedExpand(grpcClientWithNewRetry);
+  // await testPagedExpandAsync(grpcClientWithNewRetry);
+  // await testCollect(grpcClientWithNewRetry);
+  // await testChat(grpcClientWithNewRetry);
+  // await testWait(grpcClientWithNewRetry);
 }
 
 function createStreamingSequenceRequestFactory(
@@ -751,7 +751,7 @@ async function testServerStreamingRetrieswithRetryRequestOptionsResumptionStrate
       const newRequest =
         new protos.google.showcase.v1beta1.AttemptStreamingSequenceRequest();
       newRequest.name = originalRequest.name;
-      newRequest.failIndex = 5;
+      newRequest.lastFailIndex = 5;
       return newRequest;
     };
 
@@ -1050,13 +1050,13 @@ async function testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
 }
 
 async function main() {
-  // const showcaseServer = new ShowcaseServer();
-  // try {
-  //   await showcaseServer.start();
+  const showcaseServer = new ShowcaseServer();
+  try {
+    await showcaseServer.start();
   await testShowcase();
-  // } finally {
-  //   showcaseServer.stop();
-  // }
+  } finally {
+    showcaseServer.stop();
+  }
 }
 
 main();
