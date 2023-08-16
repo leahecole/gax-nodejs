@@ -439,7 +439,7 @@ export function checkRetryOptions(
 
           const convertedRetryOptions = createRetryOptions(
             retryCodesOrShouldRetryFn,
-            backoffSettings,
+            backoffSettings
           );
           options.retry = convertedRetryOptions;
           //TODO(coleleah): put back once we move resumption logic to retryOptions
@@ -491,7 +491,7 @@ export function createRetryOptions(
   return {
     retryCodesOrShouldRetryFn,
     backoffSettings,
-    getResumptionRequestFn
+    getResumptionRequestFn,
   };
 }
 
@@ -709,7 +709,11 @@ function mergeRetryOptions(
     return null;
   }
 
-  if (!overrides.retryCodesOrShouldRetryFn && !overrides.backoffSettings && !overrides.getResumptionRequestFn) {
+  if (
+    !overrides.retryCodesOrShouldRetryFn &&
+    !overrides.backoffSettings &&
+    !overrides.getResumptionRequestFn
+  ) {
     return retry;
   }
 
@@ -721,8 +725,14 @@ function mergeRetryOptions(
     ? overrides.backoffSettings
     : retry.backoffSettings;
 
-  const getResumptionRequestFn = overrides.getResumptionRequestFn ? overrides.getResumptionRequestFn : retry.getResumptionRequestFn; //TODO(coleleah): test on undefined 
-  return createRetryOptions(codesOrFunction!, backoffSettings!, getResumptionRequestFn!);
+  const getResumptionRequestFn = overrides.getResumptionRequestFn
+    ? overrides.getResumptionRequestFn
+    : retry.getResumptionRequestFn; //TODO(coleleah): test on undefined
+  return createRetryOptions(
+    codesOrFunction!,
+    backoffSettings!,
+    getResumptionRequestFn!
+  );
 }
 
 export interface ServiceConfig {

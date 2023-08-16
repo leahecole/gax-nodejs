@@ -755,7 +755,11 @@ async function testServerStreamingRetrieswithRetryRequestOptionsResumptionStrate
       return newRequest;
     };
 
-    const retryOptions = new RetryOptions(shouldRetryFn, backoffSettings, getResumptionRequestFn);
+    const retryOptions = new RetryOptions(
+      shouldRetryFn,
+      backoffSettings,
+      getResumptionRequestFn
+    );
 
     const settings = {
       retry: retryOptions,
@@ -802,7 +806,7 @@ async function testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResum
   client: SequenceServiceClient
 ) {
   const finalData: string[] = [];
-  
+
   await new Promise<void>(async (resolve, _) => {
     const shouldRetryFn = (error: GoogleError) => {
       return [4, 14].includes(error.code!);
@@ -821,9 +825,13 @@ async function testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResum
     ) => {
       // return a bad resumption strategy
       return {};
-    }
+    };
 
-    const retryOptions = new RetryOptions(shouldRetryFn, backoffSettings, getResumptionRequestFn);
+    const retryOptions = new RetryOptions(
+      shouldRetryFn,
+      backoffSettings,
+      getResumptionRequestFn
+    );
 
     const settings = {
       retry: retryOptions,
@@ -1045,7 +1053,7 @@ async function main() {
   // const showcaseServer = new ShowcaseServer();
   // try {
   //   await showcaseServer.start();
-    await testShowcase();
+  await testShowcase();
   // } finally {
   //   showcaseServer.stop();
   // }
