@@ -102,7 +102,6 @@ export class RetryOptions {
  * @property {number} maxRetryDelay - maximum retry delay in seconds
  * @property {number} retryDelayMultiplier - multiplier to increase the delay in between completion of failed requests
  * @property {number} totalTimeout - total timeout in seconds
- * @property {Function} getResumptionRequestFn - function used to determine stream resumption strategy. Returns the new request.
  */
 export interface RetryRequestOptions {
   objectMode?: boolean;
@@ -115,7 +114,6 @@ export interface RetryRequestOptions {
   maxRetryDelay?: number;
   retryDelayMultiplier?: number;
   totalTimeout?: number;
-  // getResumptionRequestFn?: (response: any) => any;
 }
 
 /**
@@ -367,10 +365,7 @@ export function checkRetryOptions(
         options.retryRequestOptions !== undefined
       ) {
         //TODO(coleleah): link to documentation when it exists
-        //TODO(coleleah): reenable this error after you've moved resumption to retryOptions
         throw new Error('Only one of retry or retryRequestOptions may be set');
-        // options.retry!.retryCodesOrShouldRetryFn =
-        //   options.retryRequestOptions.shouldRetryFn;
       } else {
         if (options.retryRequestOptions !== undefined) {
           // // Retry settings
@@ -442,8 +437,7 @@ export function checkRetryOptions(
             backoffSettings
           );
           options.retry = convertedRetryOptions;
-          //TODO(coleleah): put back once we move resumption logic to retryOptions
-          // delete options.retryRequestOptions; // completely remove them to avoid any further confusion
+          delete options.retryRequestOptions; // completely remove them to avoid any further confusion
           warn(
             'retry_request_options',
             'retryRequestOptions will be deprecated in a future release. Please use retryOptions to pass retry options at call time',
@@ -479,7 +473,7 @@ export function checkRetryOptions(
  *   upon which a retry should be attempted.
  * @param {BackoffSettings} backoffSettings - configures the retry
  *   exponential backoff algorithm.
- * @param {function} getResumptionRequestFn - a function with a resumption strategy
+ * @param {function} getResumptionRequestFn - a function with a resumption strategy - only used with server streaming retries
  * @return {RetryOptions} A new RetryOptions object.
  *
  */
@@ -727,7 +721,7 @@ function mergeRetryOptions(
 
   const getResumptionRequestFn = overrides.getResumptionRequestFn
     ? overrides.getResumptionRequestFn
-    : retry.getResumptionRequestFn; //TODO(coleleah): test on undefined
+    : retry.getResumptionRequestFn;
   return createRetryOptions(
     codesOrFunction!,
     backoffSettings!,

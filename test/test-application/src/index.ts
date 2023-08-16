@@ -1052,7 +1052,7 @@ async function main() {
   const showcaseServer = new ShowcaseServer();
   try {
     await showcaseServer.start();
-  await testShowcase();
+    await testShowcase();
   } finally {
     showcaseServer.stop();
   }
