@@ -87,76 +87,76 @@ async function testShowcase() {
   const fallbackClient = new EchoClient(fallbackClientOpts);
   const restClient = new EchoClient(restClientOpts);
 
-  // // assuming gRPC server is started locally
-  // await testEcho(grpcClient);
-  // await testEchoError(grpcClient);
-  // await testExpand(grpcClient);
-  // await testPagedExpand(grpcClient);
-  // await testPagedExpandAsync(grpcClient);
-  // await testCollect(grpcClient);
-  // await testChat(grpcClient);
-  // await testWait(grpcClient);
+  // assuming gRPC server is started locally
+  await testEcho(grpcClient);
+  await testEchoError(grpcClient);
+  await testExpand(grpcClient);
+  await testPagedExpand(grpcClient);
+  await testPagedExpandAsync(grpcClient);
+  await testCollect(grpcClient);
+  await testChat(grpcClient);
+  await testWait(grpcClient);
 
-  // await testEcho(fallbackClient);
-  // await testEchoError(fallbackClient);
-  // await testExpandThrows(fallbackClient); // fallback does not support server streaming
-  // await testPagedExpand(fallbackClient);
-  // await testPagedExpandAsync(fallbackClient);
-  // await testCollectThrows(fallbackClient); // fallback does not support client streaming
-  // await testChatThrows(fallbackClient); // fallback does not support bidi streaming
-  // await testWait(fallbackClient);
+  await testEcho(fallbackClient);
+  await testEchoError(fallbackClient);
+  await testExpandThrows(fallbackClient); // fallback does not support server streaming
+  await testPagedExpand(fallbackClient);
+  await testPagedExpandAsync(fallbackClient);
+  await testCollectThrows(fallbackClient); // fallback does not support client streaming
+  await testChatThrows(fallbackClient); // fallback does not support bidi streaming
+  await testWait(fallbackClient);
 
-  // await testEcho(restClient);
-  // await testExpand(restClient); // REGAPIC supports server streaming
-  // await testPagedExpand(restClient);
-  // await testPagedExpandAsync(restClient);
-  // await testCollectThrows(restClient); // REGAPIC does not support client streaming
-  // await testChatThrows(restClient); // REGAPIC does not support bidi streaming
-  // await testWait(restClient);
+  await testEcho(restClient);
+  await testExpand(restClient); // REGAPIC supports server streaming
+  await testPagedExpand(restClient);
+  await testPagedExpandAsync(restClient);
+  await testCollectThrows(restClient); // REGAPIC does not support client streaming
+  await testChatThrows(restClient); // REGAPIC does not support bidi streaming
+  await testWait(restClient);
 
   // Testing with newRetry being true
-  // await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
+  await testServerStreamingRetryOptions(grpcSequenceClientWithNewRetry);
 
-  // await testServerStreamingRetriesWithShouldRetryFn(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetriesWithShouldRetryFn(
+    grpcSequenceClientWithNewRetry
+  );
 
-  // await testServerStreamingRetrieswithRetryOptions(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetrieswithRetryOptions(
+    grpcSequenceClientWithNewRetry
+  );
 
-  // await testServerStreamingRetrieswithRetryRequestOptions(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetrieswithRetryRequestOptions(
+    grpcSequenceClientWithNewRetry
+  );
 
   await testServerStreamingRetrieswithRetryRequestOptionsResumptionStrategy(
     grpcSequenceClientWithNewRetry
   );
 
-  // await testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResumptionStrategy(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResumptionStrategy(
+    grpcSequenceClientWithNewRetry
+  );
 
-  // await testServerStreamingThrowsClassifiedTransientError(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingThrowsClassifiedTransientError(
+    grpcSequenceClientWithNewRetry
+  );
 
-  // await testServerStreamingRetriesAndThrowsClassifiedTransientError(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingRetriesAndThrowsClassifiedTransientError(
+    grpcSequenceClientWithNewRetry
+  );
 
-  // await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
-  //   grpcSequenceClientWithNewRetry
-  // );
+  await testServerStreamingThrowsCannotSetTotalTimeoutMillisMaxRetries(
+    grpcSequenceClientWithNewRetry
+  );
 
-  // await testEcho(grpcClientWithNewRetry);
-  // await testEchoError(grpcClientWithNewRetry);
-  // await testExpand(grpcClientWithNewRetry);
-  // await testPagedExpand(grpcClientWithNewRetry);
-  // await testPagedExpandAsync(grpcClientWithNewRetry);
-  // await testCollect(grpcClientWithNewRetry);
-  // await testChat(grpcClientWithNewRetry);
-  // await testWait(grpcClientWithNewRetry);
+  await testEcho(grpcClientWithNewRetry);
+  await testEchoError(grpcClientWithNewRetry);
+  await testExpand(grpcClientWithNewRetry);
+  await testPagedExpand(grpcClientWithNewRetry);
+  await testPagedExpandAsync(grpcClientWithNewRetry);
+  await testCollect(grpcClientWithNewRetry);
+  await testChat(grpcClientWithNewRetry);
+  await testWait(grpcClientWithNewRetry);
 }
 
 function createStreamingSequenceRequestFactory(
@@ -807,7 +807,7 @@ async function testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResum
 ) {
   const finalData: string[] = [];
 
-  await new Promise<void>(async (resolve, _) => {
+  await new Promise<void>(async (_, reject) => {
     const shouldRetryFn = (error: GoogleError) => {
       return [4, 14].includes(error.code!);
     };
@@ -845,6 +845,7 @@ async function testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResum
       [1, 2, 11],
       'This is testing the brand new and shiny StreamingSequence server 3'
     );
+    const allowedCodes = [4, 14];
     const response = await client.createStreamingSequence(request);
     const sequence = response[0];
 
@@ -856,15 +857,13 @@ async function testServerStreamingRetrieswithRetryRequestOptionsErrorsOnBadResum
       attemptRequest,
       settings
     );
-    attemptStream.on('data', (response: {content: string}) => {
-      finalData.push(response.content);
-    });
+    // attemptStream.on('data', (response: {content: string}) => {
+    //   finalData.push(response.content);
+    // });
     attemptStream.on('error', (e: any) => {
-      // do nothing
-    });
-    attemptStream.on('end', () => {
-      attemptStream.end();
-      resolve();
+      if (!allowedCodes.includes(e.code!)) {
+        reject(e);
+      }
     });
   }).then(
     () => {
