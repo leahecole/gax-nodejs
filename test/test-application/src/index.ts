@@ -31,7 +31,6 @@ import {
   RetryOptions,
 } from 'google-gax';
 import stream = require('stream');
-//TODO(coleleah): update failindex to be lastfailindex
 
 async function testShowcase() {
   const grpcClientOpts = {
