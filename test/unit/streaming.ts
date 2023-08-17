@@ -21,7 +21,7 @@ import * as sinon from 'sinon';
 import {afterEach, describe, it} from 'mocha';
 import {PassThrough} from 'stream';
 
-import {GaxCallStream, GRPCCall} from '../../src/apitypes';
+import {GaxCallStream, GRPCCall, RequestType} from '../../src/apitypes';
 import {createApiCall} from '../../src/createApiCall';
 import {StreamingApiCaller} from '../../src/streamingCalls/streamingApiCaller';
 import * as gax from '../../src/gax';
@@ -792,6 +792,129 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
       }
     );
   });
+  it('allows the user to pass a custom resumption strategy', done => {
+    sinon
+      .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
+      .callsFake((stream, retry): any => {
+        console.log("hello i am here", retry)
+        assert(stream instanceof internal.Stream);
+        assert(retry.getResumptionRequestFn instanceof Function)
+        done();
+      });
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true //gaxStreamingRetries
+    );
+
+    // "resumption" strategy is to just return the original request
+    const getResumptionRequestFn = (
+      originalRequest: RequestType
+    ) => {
+      return originalRequest
+    };
+
+    apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([1, 2, 3], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          totalTimeoutMillis: 4500,
+        }, getResumptionRequestFn),
+      }
+    );
+  });
+    //TODO(coleleah): errors when the resumption strategy is not a function
+    it('allows the user to pass a custom resumption strategy', done => {
+      sinon
+        .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
+        .callsFake((stream): any => {
+          assert(stream instanceof internal.Stream);
+          done();
+        });
+      const spy = sinon.spy((...args: Array<{}>) => {
+        assert.strictEqual(args.length, 3);
+        const s = new PassThrough({
+          objectMode: true,
+        });
+        return s;
+      });
+  
+      const apiCall = createApiCallStreaming(
+        spy,
+        streaming.StreamType.SERVER_STREAMING,
+        false,
+        true //gaxStreamingRetries
+      );
+  
+      apiCall(
+        {},
+        {
+          retry: gax.createRetryOptions([1, 2, 3], {
+            initialRetryDelayMillis: 100,
+            retryDelayMultiplier: 1.2,
+            maxRetryDelayMillis: 1000,
+            rpcTimeoutMultiplier: 1.5,
+            maxRpcTimeoutMillis: 3000,
+            totalTimeoutMillis: 4500,
+          }),
+        }
+      );
+    });
+  //TODO(coleleah): errors when the resumption strategy is passed for a non streaming call
+  // this might need to be in another file
+  it('errors when a user passes a resumption strategy for a non streaming call', done => {
+    sinon
+      .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
+      .callsFake((stream): any => {
+        assert(stream instanceof internal.Stream);
+        done();
+      });
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true //gaxStreamingRetries
+    );
+
+    apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([1, 2, 3], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          totalTimeoutMillis: 4500,
+        }),
+      }
+    );
+  });
+
+
+  
 
   it('throws an error when both retryRequestoptions and retryOptions are passed at call time when new retry behavior is enabled', done => {
     //if this is reached, it means the settings merge in createAPICall did not fail properly
