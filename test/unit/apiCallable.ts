@@ -19,6 +19,7 @@ import {status} from '@grpc/grpc-js';
 import {afterEach, describe, it} from 'mocha';
 import * as sinon from 'sinon';
 
+import {RequestType} from '../../src/apitypes';
 import * as gax from '../../src/gax';
 import {GoogleError} from '../../src/googleError';
 import * as utils from './utils';
@@ -253,6 +254,53 @@ describe('createApiCall', () => {
         },
       }
     );
+  });
+
+  it('errors when a resumption strategy is passed for a non streaming call', async () => {
+    const initialBackoffSettings = gax.createDefaultBackoffSettings();
+    const overriBackoffSettings = gax.createBackoffSettings(
+      100,
+      1.2,
+      1000,
+      null,
+      1.5,
+      3000,
+      4500
+    );
+    // "resumption" strategy is to just return the original request
+    const getResumptionRequestFn = (originalRequest: RequestType) => {
+      return originalRequest;
+    };
+
+    function func() {
+      Promise.resolve();
+    }
+    const apiCall = createApiCall(func, {
+      settings: {
+        retry: gax.createRetryOptions(
+          [1],
+          initialBackoffSettings,
+          getResumptionRequestFn
+        ),
+      },
+    });
+
+    try {
+      await apiCall(
+        {},
+        {
+          retry: {
+            backoffSettings: overriBackoffSettings,
+          },
+        }
+      );
+    } catch (err) {
+      assert(err instanceof Error);
+      assert.strictEqual(
+        err.message,
+        'Resumption strategy can only be used with server streaming retries'
+      );
+    }
   });
 });
 

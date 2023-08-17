@@ -103,6 +103,11 @@ export function createApiCall(
           ?.streaming;
 
         const retry = thisSettings.retry;
+        if (!streaming && retry && retry.getResumptionRequestFn) {
+          throw new Error(
+            'Resumption strategy can only be used with server streaming retries'
+          );
+        }
         if (!streaming && retry && retry.retryCodesOrShouldRetryFn) {
           if (
             retry.retryCodesOrShouldRetryFn instanceof Array &&
