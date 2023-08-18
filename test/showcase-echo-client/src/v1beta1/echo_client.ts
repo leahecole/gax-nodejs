@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 // ** All changes to this file may be overwritten. **
 
 /* global window */
-//@ts-nocheck
 import type * as gax from 'google-gax';
 import type {
   Callback,
@@ -227,8 +226,7 @@ export class EchoClient {
     this.descriptors.stream = {
       expand: new this._gaxModule.StreamDescriptor(
         this._gaxModule.StreamType.SERVER_STREAMING,
-        opts.fallback === 'rest',
-        this._opts.newRetry
+        opts.fallback === 'rest'
       ),
       collect: new this._gaxModule.StreamDescriptor(
         this._gaxModule.StreamType.CLIENT_STREAMING,
@@ -863,6 +861,8 @@ export class EchoClient {
    *   The content that will be split into words and returned on the stream.
    * @param {google.rpc.Status} request.error
    *   The error that is thrown after all words are sent on the stream.
+   * @param {google.protobuf.Duration} request.streamWaitTime
+   *  The wait time between each server streaming messages
    * @param {object} [options]
    *   Call options. See {@link https://googleapis.dev/nodejs/google-gax/latest/interfaces/CallOptions.html|CallOptions} for more details.
    * @returns {Stream}

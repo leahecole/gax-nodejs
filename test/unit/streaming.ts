@@ -21,7 +21,7 @@ import * as sinon from 'sinon';
 import {afterEach, describe, it} from 'mocha';
 import {PassThrough} from 'stream';
 
-import {GaxCallStream, GRPCCall} from '../../src/apitypes';
+import {GaxCallStream, GRPCCall, RequestType} from '../../src/apitypes';
 import {createApiCall} from '../../src/createApiCall';
 import {StreamingApiCaller} from '../../src/streamingCalls/streamingApiCaller';
 import * as gax from '../../src/gax';
@@ -414,7 +414,6 @@ describe('streaming', () => {
       s.push(null);
       s.on('end', () => {
         setTimeout(() => {
-          console.log('emit status event');
           s.emit('status', expectedStatus);
         }, 10);
       });
@@ -570,7 +569,6 @@ describe('streaming', () => {
         objectMode: true,
       });
       setImmediate(() => {
-        console.log(counter);
         s.push('Hello');
         s.push('World');
         switch (counter) {
@@ -791,6 +789,53 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
           maxRpcTimeoutMillis: 3000,
           totalTimeoutMillis: 4500,
         }),
+      }
+    );
+  });
+  it('allows the user to pass a custom resumption strategy', done => {
+    sinon
+      .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
+      .callsFake((stream, retry): any => {
+        console.log('hello i am here', retry);
+        assert(stream instanceof internal.Stream);
+        assert(retry.getResumptionRequestFn instanceof Function);
+        done();
+      });
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true //gaxStreamingRetries
+    );
+
+    // "resumption" strategy is to just return the original request
+    const getResumptionRequestFn = (originalRequest: RequestType) => {
+      return originalRequest;
+    };
+
+    apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions(
+          [1, 2, 3],
+          {
+            initialRetryDelayMillis: 100,
+            retryDelayMultiplier: 1.2,
+            maxRetryDelayMillis: 1000,
+            rpcTimeoutMultiplier: 1.5,
+            maxRpcTimeoutMillis: 3000,
+            totalTimeoutMillis: 4500,
+          },
+          getResumptionRequestFn
+        ),
       }
     );
   });
