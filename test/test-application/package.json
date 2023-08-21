@@ -31,6 +31,6 @@
     "protobufjs": "^7.0.0"
   },
   "engines": {
-    "node": ">=v14"
+    "node": ">=14"
   }
 }
