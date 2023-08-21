@@ -225,17 +225,17 @@ export class EchoClient {
     // Provide descriptors for these.
     this.descriptors.stream = {
       expand: new this._gaxModule.StreamDescriptor(
-        gax.StreamType.SERVER_STREAMING,
+        this._gaxModule.StreamType.SERVER_STREAMING,
         // legacy: opts.fallback can be a string or a boolean
         opts.fallback ? true : false
       ),
       collect: new this._gaxModule.StreamDescriptor(
-        gax.StreamType.CLIENT_STREAMING,
+        this._gaxModule.StreamType.CLIENT_STREAMING,
         // legacy: opts.fallback can be a string or a boolean
         opts.fallback ? true : false
       ),
       chat: new this._gaxModule.StreamDescriptor(
-        gax.StreamType.BIDI_STREAMING,
+        this._gaxModule.StreamType.BIDI_STREAMING,
         // legacy: opts.fallback can be a string or a boolean
         opts.fallback ? true : false
       ),
