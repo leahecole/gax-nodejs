@@ -188,6 +188,7 @@ function createStreamingSequenceRequestFactory(
   request.streamingSequence = streamingSequence;
 
   return request;
+
 }
 
 async function testEcho(client: EchoClient) {
