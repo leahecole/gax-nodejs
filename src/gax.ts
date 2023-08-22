@@ -364,7 +364,6 @@ export function checkRetryOptions(
         options.retry !== undefined &&
         options.retryRequestOptions !== undefined
       ) {
-        //TODO(coleleah): link to documentation when it exists
         throw new Error('Only one of retry or retryRequestOptions may be set');
       } else {
         if (options.retryRequestOptions !== undefined) {

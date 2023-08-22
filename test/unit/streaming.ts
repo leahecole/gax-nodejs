@@ -1054,7 +1054,6 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
     );
   });
 });
-//TODO(coleleah): consider refactoring these to use async/await
 describe('warns/errors about server streaming retry behavior when gaxStreamingRetries is disabled', () => {
   afterEach(() => {
     // restore 'call' stubs and 'warn' stubs
