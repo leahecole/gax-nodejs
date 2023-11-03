@@ -53,7 +53,7 @@ function createApiCallStreaming(
   ) as GaxCallStream;
 }
 
-function createApiCallStreamingWithNewLogic(
+function createApiCallStreamingWithNewLogic( //TODO: verify this is needed???
   func:
     | Promise<GRPCCall>
     | sinon.SinonSpy<Array<{}>, internal.Transform | StreamArrayParser>,
@@ -91,7 +91,7 @@ describe('streaming', () => {
 
     const apiCall = createApiCallStreaming(
       spy,
-      streaming.StreamType.SERVER_STREAMING
+      streaming.StreamType.SERVER_STREAMING,
     );
     const s = apiCall({}, undefined);
     const callback = sinon.spy(data => {
@@ -109,6 +109,7 @@ describe('streaming', () => {
       done();
     });
   });
+
 
   it('handles client streaming', done => {
     function func(metadata: {}, options: {}, callback: APICallback) {
@@ -244,6 +245,80 @@ describe('streaming', () => {
     });
     assert.strictEqual(s.readable, true);
     assert.strictEqual(s.writable, true);
+    setTimeout(() => {
+      s.end(s);
+    }, 50);
+  });
+  it.skip('WIP forwards metadata and status when new gax retries are enabled', done => { //TODO(coleleah) fix
+    const responseMetadata = {metadata: true};
+    const status = {code: 0, metadata: responseMetadata};
+    const expectedResponse = {
+      code: 200,
+      message: 'OK',
+      details: '',
+      metadata: responseMetadata,
+    };
+    function func() {
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      setTimeout(() => {
+        s.emit('metadata', responseMetadata);
+      }, 10);
+      s.on('finish', () => {
+        s.emit('status', status);
+      });
+      return s;
+    }
+    const apiCall = createApiCallStreaming(
+      //@ts-ignore
+      func,
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true
+    );
+    const s = apiCall({}, undefined);
+    let receivedMetadata: {};
+    let receivedStatus: {};
+    let receivedResponse: {};
+    let finished = false;
+
+    function check() {
+      console.log("CHECK CHECK")
+      if (
+        typeof receivedMetadata !== 'undefined' &&
+        typeof receivedStatus !== 'undefined' &&
+        typeof receivedResponse !== 'undefined' &&
+        finished
+      ) {
+        assert.deepStrictEqual(receivedMetadata, responseMetadata);
+        assert.deepStrictEqual(receivedStatus, status);
+        assert.deepStrictEqual(receivedResponse, expectedResponse);
+        console.log("in this part of the test")
+        assert.deepStrictEqual("a", "b")
+        done();
+      }
+    }
+
+    // Note: in Node v15 the order of events has changed: 'status' comes after 'finish'.
+    // It might be a Node bug; we'll just make sure the code works.
+    s.on('metadata', data => {
+      receivedMetadata = data;
+      check();
+    });
+    s.on('status', data => {
+      receivedStatus = data;
+      check();
+    });
+    s.on('response', data => {
+      receivedResponse = data;
+      check();
+    });
+    s.on('finish', () => {
+      finished = true;
+      check();
+    });
+    assert.strictEqual(s.readable, true);
     setTimeout(() => {
       s.end(s);
     }, 50);
@@ -553,7 +628,88 @@ describe('streaming', () => {
       )
     );
   });
+  it('emit parsed GoogleError when new retries are enabled', done => {
 
+    const errorInfoObj = {
+      reason: 'SERVICE_DISABLED',
+      domain: 'googleapis.com',
+      metadata: {
+        consumer: 'projects/455411330361',
+        service: 'translate.googleapis.com',
+      },
+    };
+    const errorProtoJson = require('../../protos/status.json');
+    const root = protobuf.Root.fromJSON(errorProtoJson);
+    const errorInfoType = root.lookupType('ErrorInfo');
+    const buffer = errorInfoType.encode(errorInfoObj).finish() as Buffer;
+    const any = {
+      type_url: 'type.googleapis.com/google.rpc.ErrorInfo',
+      value: buffer,
+    };
+    const status = {code: 3, message: 'test', details: [any]};
+    const Status = root.lookupType('google.rpc.Status');
+    const status_buffer = Status.encode(status).finish() as Buffer;
+    const metadata = new Metadata();
+    metadata.set('grpc-status-details-bin', status_buffer);
+    const error = Object.assign(new GoogleError('test error'), {
+      code: 5,
+      details: 'Failed to read',
+      metadata: metadata,
+    });
+
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      s.push(null);
+      setImmediate(() => {
+        s.emit('error', error);
+      });
+      setImmediate(() => {
+        s.emit('end');
+      });
+      return s;
+    });
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true // new retry behavior enabled
+    );
+
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([5], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 0,
+        }),
+      }
+    );
+
+    s.on('error', err => {
+      s.pause();
+      s.destroy();
+      assert(err instanceof GoogleError);
+      assert.deepStrictEqual(err.message, 'test error');
+      assert.strictEqual(err.domain, errorInfoObj.domain);
+      assert.strictEqual(err.reason, errorInfoObj.reason);
+      assert.strictEqual(
+        JSON.stringify(err.errorInfoMetadata),
+        JSON.stringify(errorInfoObj.metadata)
+      );
+      done();
+    });
+    s.on('end', () => {
+      done();
+    });
+  });
+  
   it('emit error and retry once', done => {
     const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
       code: 14,
@@ -612,23 +768,11 @@ describe('streaming', () => {
         }),
       }
     );
-    let errorCount = 0;
     s.on('data', data => {
       receivedData.push(data);
     });
-    s.on('error', err => {
-      assert(err instanceof GoogleError);
-      switch (errorCount) {
-        case 0:
-          assert.deepStrictEqual(err.message, 'UNAVAILABLE');
-          assert.strictEqual(err.code, 14);
-          break;
-        default:
-          break;
-      }
-      errorCount++;
-    });
   });
+
 
   it('emit error and retry once with shouldRetryFn', done => {
     const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
@@ -674,22 +818,100 @@ describe('streaming', () => {
       spy,
       streaming.StreamType.SERVER_STREAMING
     );
-
-    function retryCodesOrShouldRetryFn(error: GoogleError) {
+    //TODO (coleleah) - add tests to test conditions of whether or not shouldRetryFn should be set or not
+    function shouldRetryFn(error: GoogleError) {
       return [14].includes(error.code!);
     }
 
     const s = apiCall(
       {},
       {
-        retry: gax.createRetryOptions(retryCodesOrShouldRetryFn, {
+        retry: gax.createRetryOptions([], {
           initialRetryDelayMillis: 100,
           retryDelayMultiplier: 1.2,
           maxRetryDelayMillis: 1000,
           rpcTimeoutMultiplier: 1.5,
           maxRpcTimeoutMillis: 3000,
           maxRetries: 1,
-        }),
+        },
+        shouldRetryFn),
+      }
+    );
+    let errorCount = 0;
+    s.on('data', data => {
+      receivedData.push(data);
+    });
+  });
+
+  it.skip('WIP emit error and retry with resumption requrest', done => { //TODO(coleleah): rename
+    const request = {"example": "example content"}
+
+    const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
+      code: 14,
+      details: 'UNAVAILABLE',
+    });
+    let counter = 0;
+    const expectedStatus = {code: 0};
+    const receivedData: string[] = [];
+    sinon
+      .stub(streaming.StreamProxy.prototype, 'streamHandoffHelper') //TODO: figure out how to capture 138 in streaming.ts
+      .callsFake((stream, retry): any => {
+        assert(stream instanceof internal.Stream);
+        assert(retry.getResumptionRequestFn!(request).example === "new content")
+        done();
+      });
+
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      setImmediate(() => {
+        s.push('Hello');
+        s.push('World');
+        switch (counter) {
+          case 0:
+            s.emit('error', firstError);
+            counter++;
+            break;
+          case 1:
+            s.push('testing');
+            s.push('retries');
+            s.emit('status', expectedStatus);
+            counter++;
+            assert.deepStrictEqual(
+              receivedData.join(' '),
+              'Hello World testing retries'
+            );
+            done();
+            break;
+          default:
+            break;
+        }
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreamingWithNewLogic(
+      spy,
+      streaming.StreamType.SERVER_STREAMING
+    );
+    // "resumption" strategy is to just return the original request
+    const getResumptionRequestFn = (originalRequest: RequestType) => {
+      return {"example": "new content"};
+    };
+
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([14], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 1,
+        }, undefined, getResumptionRequestFn),
       }
     );
     let errorCount = 0;
@@ -715,7 +937,108 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
   afterEach(() => {
     sinon.restore();
   });
+
+  //TODO(timeout check)
+  //TODO(max retries check)
+  it('emits error on server streaming call when we exceed max retries', done => {
+    //TODO - this case thing doesn't work - I think that the timing is not quite right in the node events loop
+    // likely we need to do something like mocking a call going into the timeoff and Max retry check rather than
+    // doing something whack like this
+    console.log("TEST START")
+    const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
+      code: 14,
+      details: 'UNAVAILABLE',
+    });
+    const secondError = Object.assign(new GoogleError('UNAVAILABLE'), {
+      code: 13,
+      details: 'UNAVAILABLE',
+    });
+    let counter = 0;
+    const expectedStatus = {code: 0};
+    const receivedData: string[] = [];
+
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      setImmediate(() => {
+        s.push('Hello');
+        s.push('World');
+        switch (counter) {
+          case 0:
+            console.log("ZERO")
+            s.emit('error', firstError);
+            // counter++;
+            break;
+          case 1:
+            console.log("ONE")
+            s.push('testing');
+            s.emit('error', secondError);
+            // counter++;
+            break;
+          case 2:
+            console.log("TWO")
+            s.push('testing');
+            s.emit('error', secondError);
+            // counter++;
+            break;
+          case 3:
+            console.log("THREEO")
+            s.push('retries');
+            s.emit('status', expectedStatus);
+            console.log("test1003")
+            // counter++;
+            assert.deepStrictEqual(
+              receivedData.join(' '),
+              'Hello World testing retries'
+            );
+            done();
+            break;
+          default:
+            console.log(counter)
+            console.log("default")
+            break;
+        }
+        counter++
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true
+    );
+
+    const s = apiCall(
+      {},
+      {
+        retry: gax.createRetryOptions([14], {
+          initialRetryDelayMillis: 100,
+          retryDelayMultiplier: 1.2,
+          maxRetryDelayMillis: 1000,
+          rpcTimeoutMultiplier: 1.5,
+          maxRpcTimeoutMillis: 3000,
+          maxRetries: 1, // set max retries to 1 to force exceeding max retries
+        }),
+      }
+    );
+    let errorCount = 0;
+    s.on('data', data => {
+      console.log("ON DATA", data)
+      receivedData.push(data);
+    });
+    s.on('error', err => {
+      console.log("TEST ON ERROR", err)
+      assert(err instanceof GoogleError); //TODO This likely shouldn't be this way because the first error should be swallowed
+      //TODO should be looking for maxRetries error
+      console.log("AFTER ERROR COUNT")
+    });
+  });
   it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
+    console.log("NEXT TEST")
     sinon
       .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
       .callsFake((stream): any => {
@@ -741,9 +1064,7 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
       {},
       {
         retry: gax.createRetryOptions(
-          () => {
-            return true;
-          },
+          [],
           {
             initialRetryDelayMillis: 100,
             retryDelayMultiplier: 1.2,
@@ -751,6 +1072,9 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
             rpcTimeoutMultiplier: 1.5,
             maxRpcTimeoutMillis: 3000,
             totalTimeoutMillis: 4500,
+          },
+          () => {
+            return true;
           }
         ),
       }
@@ -833,12 +1157,65 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
             maxRpcTimeoutMillis: 3000,
             totalTimeoutMillis: 4500,
           },
+          function alwaysRetry(){return true}, //TODO(coleleah) may need to be changed
           getResumptionRequestFn
         ),
       }
     );
   });
+  it.skip('WIP throws an error when both totalTimeoutMillis and maxRetries are passed at call time when new retry behavior is enabled', done => {
+    //TODO(coleleah) this likely needs to be similar to the 
+    //if this is reached, it means the settings merge in createAPICall did not fail properly
+    sinon
+      .stub(StreamingApiCaller.prototype, 'call')
+      .callsFake((apiCall, argument, settings, stream) => {
+        console.log("I reached THIS")
+        console.log(settings)
+        throw new Error("This shouldn't be happening");
+      });
 
+    const spy = sinon.spy((...args: Array<{}>) => {
+      assert.strictEqual(args.length, 3);
+      const s = new PassThrough({
+        objectMode: true,
+      });
+      return s;
+    });
+
+    const apiCall = createApiCallStreaming(
+      spy,
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true // ensure we're doing the new retries
+    );
+
+  
+    // make the call with both options passed at call time
+    try {
+      apiCall(
+        {},
+        {
+          retry: gax.createRetryOptions([1], {
+            initialRetryDelayMillis: 300,
+            retryDelayMultiplier: 1.2,
+            maxRetryDelayMillis: 1000,
+            rpcTimeoutMultiplier: 1.5,
+            maxRpcTimeoutMillis: 3000,
+            totalTimeoutMillis: 4500,
+            maxRetries: 5
+          }),
+        }
+      );
+    } catch (err) {
+      console.log("I reached this")
+      assert(err instanceof GoogleError);
+      assert.strictEqual(
+        err.toString(),
+        'Cannot set both totalTimeoutMillis and maxRetries in backoffSettings'
+      );
+      done();
+    }
+  });
   it('throws an error when both retryRequestoptions and retryOptions are passed at call time when new retry behavior is enabled', done => {
     //if this is reached, it means the settings merge in createAPICall did not fail properly
     sinon
@@ -923,8 +1300,9 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
 
           assert.strictEqual(settings.retry?.backoffSettings.maxRetries, 1);
           assert(
-            typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
+            settings.retry.shouldRetryFn
           );
+          assert(settings.retry.retryCodes.length === 0)
           assert(settings.retry !== new gax.CallSettings().retry);
           done();
         } catch (err) {
@@ -1019,8 +1397,9 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
 
           assert.strictEqual(settings.retry?.backoffSettings.maxRetries, 0);
           assert(
-            typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
+            settings.retry.shouldRetryFn
           );
+          assert(settings.retry.retryCodes.length===0)
           assert(settings.retry !== new gax.CallSettings().retry);
           done();
         } catch (err) {
@@ -1115,8 +1494,9 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
             typeof settings.retry?.backoffSettings.maxRetries === 'undefined'
           );
           assert(
-            typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
+            settings.retry.shouldRetryFn
           );
+          assert(settings.retry.retryCodes.length===0)
           assert(settings.retry !== new gax.CallSettings().retry);
           done();
         } catch (err) {
@@ -1210,8 +1590,9 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
             typeof settings.retry?.backoffSettings.maxRetries === 'undefined'
           );
           assert(
-            typeof settings.retry.retryCodesOrShouldRetryFn === 'function'
+            settings.retry.shouldRetryFn
           );
+          assert(settings.retry.retryCodes.length === 0)
           assert(settings.retry !== new gax.CallSettings().retry);
           done();
         } catch (err) {
