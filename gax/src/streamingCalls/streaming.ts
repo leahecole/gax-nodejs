@@ -171,27 +171,28 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       deadline &&
       now.getTime() >= this.prevDeadline
     ) {
+      console.log("176")
       const error = new GoogleError(
         `Total timeout of API exceeded ${totalTimeoutMillis} milliseconds before any response was received.`
       );
       error.code = Status.DEADLINE_EXCEEDED;
-      this.emit('error', error);
-
-      this.destroy(error);
+      this.emit('error', error)
+      this.destroy();
       // Without throwing error you get unhandled error since we are returning a new stream
       // There might be a better way to do this
       throw error;
     }
+    console.log("BEFORE MAX RETRIES", this.retries, maxRetries)
 
-    if (this.retries && this.retries > maxRetries) {
+    if (this.retries && this.retries > maxRetries) { //TODO Does this need to be >= to match retries???
+      console.log("MAX RETRIES", this.retries, maxRetries)
       const error = new GoogleError(
         'Exceeded maximum number of retries before any ' +
           'response was received'
       );
       error.code = Status.DEADLINE_EXCEEDED;
-      this.emit('error', error);
-
-      this.destroy(error);
+      this.emit('error', error)
+      this.destroy();
       throw error;
     }
   }
@@ -250,28 +251,18 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         timeout = Math.min(timeoutCal, rpcTimeout, newDeadline);
       }, toSleep);
     } else {
+      console.log("else 261")
       e.note =
         'Exception occurred in retry method that was ' +
         'not classified as transient';
-      this.emit('error', e);
-      this.destroy(e);
+      this.emit('error', e)
+      this.destroy();
       return;
     }
-
-    if (maxRetries && deadline!) {
-      const newError = new GoogleError(
-        'Cannot set both totalTimeoutMillis and maxRetries ' +
-          'in backoffSettings.'
-      );
-      newError.code = Status.INVALID_ARGUMENT;
-      this.emit('error', newError);
-
-      this.destroy(newError);
-    } else {
-      retryStream = this.retry(stream, retry);
-      this.stream = retryStream;
-      return;
-    }
+    console.log("276")
+    retryStream = this.retry(stream, retry);
+    this.stream = retryStream;
+    return;
   }
 
   /**
@@ -426,12 +417,14 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
           console.log("shouldretry")
           console.log(maxRetries, timeout)
           if (maxRetries && timeout!) { //TODO: try to get this chunk tested
+            console.log("this one")
             const newError = new GoogleError(
               'Cannot set both totalTimeoutMillis and maxRetries ' +
                 'in backoffSettings.'
             );
             newError.code = Status.INVALID_ARGUMENT;
-            this.destroy(newError);
+            this.emit('error', newError)
+            this.destroy();
             return; //end chunk
           } else {
             console.log("441")
