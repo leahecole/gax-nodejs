@@ -146,10 +146,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     ) as CancellableStream;
     this.stream = new_stream;
 
-    const retryStream = this.streamHandoffHelper(new_stream, retry);
-    if (retryStream !== undefined) {
-      return retryStream;
-    }
+    this.streamHandoffHelper(new_stream, retry);
     return new_stream;
   }
 
