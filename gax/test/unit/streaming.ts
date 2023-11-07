@@ -1422,10 +1422,7 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
       }
     );
   });
-  it.only('WIP throws an error when both totalTimeoutMillis and maxRetries are passed at call time when new retry behavior is enabled', done => {
-    //TODO(coleleah) this likely needs to be similar to the 
-    //if this is reached, it means the settings merge in createAPICall did not fail properly
-    console.log("START TEST")
+  it('throws an error when both totalTimeoutMillis and maxRetries are passed at call time when new retry behavior is enabled', done => {
     const status = {code: 4, message: 'test'};
     const error = Object.assign(new GoogleError('test error'), {
       code: 4,
