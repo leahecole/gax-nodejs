@@ -31,8 +31,7 @@ import {Descriptor} from './descriptor';
 import {
   CallOptions,
   CallSettings,
-  checkRetryOptions,
-  isRetryCodes,
+  checkRetryOptions
 } from './gax';
 import {retryable} from './normalCalls/retries';
 import {addTimeoutArg} from './normalCalls/timeout';
@@ -113,24 +112,26 @@ export function createApiCall(
             'Resumption strategy can only be used with server streaming retries'
           );
         }
-        if (!streaming && retry && retry?.retryCodesOrShouldRetryFn) {
-          if (!isRetryCodes(retry.retryCodesOrShouldRetryFn) && !streaming) {
+        //TODO: coleleah - runtime check for if shouldRetryFn is defined and retryCodes are passed
+        //TODO: coleleah - add tests
+        if (!streaming && retry) {
+          if (retry.shouldRetryFn) { 
             throw new Error(
               'Using a function to determine retry eligibility is only supported with server streaming calls'
             );
           }
           if (
-            isRetryCodes(retry.retryCodesOrShouldRetryFn) &&
-            retry.retryCodesOrShouldRetryFn.length > 0
+            retry.retryCodes &&
+            retry.retryCodes.length > 0
           ) {
-            retry.backoffSettings.initialRpcTimeoutMillis ??=
-              thisSettings.timeout;
-            return retryable(
-              func,
-              thisSettings.retry!,
-              thisSettings.otherArgs as GRPCCallOtherArgs,
-              thisSettings.apiName
-            );
+              retry.backoffSettings.initialRpcTimeoutMillis ??=
+                thisSettings.timeout;
+              return retryable(
+                func,
+                thisSettings.retry!,
+                thisSettings.otherArgs as GRPCCallOtherArgs,
+                thisSettings.apiName
+              );
           }
         }
         return addTimeoutArg(

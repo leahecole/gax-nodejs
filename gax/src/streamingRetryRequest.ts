@@ -71,9 +71,9 @@ const DEFAULTS = {
   */
   retries: 0,
 
-  retryCodesOrShouldRetryFn:
-    [14] ||
-    function (response: any) {
+  retryCodes: [14],
+
+  shouldRetryFn: function (response: any) {
       return undefined;
     },
 

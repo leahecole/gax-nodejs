@@ -75,13 +75,12 @@ const RETRY_DICT = {
 
 function expectRetryOptions(obj: gax.RetryOptions) {
   assert.ok(obj instanceof Object);
-  ['retryCodesOrShouldRetryFn', 'backoffSettings'].forEach(k =>
+  ['retryCodes', 'backoffSettings'].forEach(k =>
     // eslint-disable-next-line no-prototype-builtins
     assert.ok(obj.hasOwnProperty(k))
   );
   assert.ok(
-    Array.isArray(obj.retryCodesOrShouldRetryFn) ||
-      obj.retryCodesOrShouldRetryFn instanceof Function
+    Array.isArray(obj.retryCodes)
   );
   expectBackoffSettings(obj.backoffSettings);
 }
@@ -103,51 +102,6 @@ function expectBackoffSettings(obj: gax.BackoffSettings) {
 }
 
 describe('gax construct settings', () => {
-  it('checks helper function for retry codes', () => {
-    const defaults = gax.constructSettings(
-      SERVICE_NAME,
-      A_CONFIG,
-      {},
-      RETRY_DICT
-    );
-    assert(
-      gax.isRetryCodes(defaults.bundlingMethod.retry.retryCodesOrShouldRetryFn)
-    );
-  });
-  it('checks helper function for should retry function', () => {
-    const defaults = gax.constructSettings(
-      SERVICE_NAME,
-      A_CONFIG,
-      {},
-      RETRY_DICT
-    );
-    function neverRetry(): boolean {
-      return false;
-    }
-    defaults.bundlingMethod.retry.retryCodesOrShouldRetryFn = neverRetry;
-    assert(
-      !gax.isRetryCodes(defaults.bundlingMethod.retry.retryCodesOrShouldRetryFn)
-    );
-  });
-  it('helper function errors on bad input', () => {
-    const defaults = gax.constructSettings(
-      SERVICE_NAME,
-      A_CONFIG,
-      {},
-      RETRY_DICT
-    );
-    defaults.bundlingMethod.retry.retryCodesOrShouldRetryFn = 5;
-    try {
-      gax.isRetryCodes(defaults.bundlingMethod.retry.retryCodesOrShouldRetryFn);
-    } catch (err) {
-      assert(err instanceof Error);
-      assert(
-        err.message ===
-          'retryCodesOrShouldRetryFn must be an array or a function'
-      );
-    }
-  });
-
   it('creates settings', () => {
     const otherArgs = {key: 'value'};
     const defaults = gax.constructSettings(
@@ -161,13 +115,13 @@ describe('gax construct settings', () => {
     assert.strictEqual(settings.timeout, 40000);
     assert.strictEqual(settings.apiName, SERVICE_NAME);
     expectRetryOptions(settings.retry);
-    assert.deepStrictEqual(settings.retry.retryCodesOrShouldRetryFn, [1, 2]);
+    assert.deepStrictEqual(settings.retry.retryCodes, [1, 2]);
     assert.strictEqual(settings.otherArgs, otherArgs);
 
     settings = defaults.pageStreamingMethod;
     assert.strictEqual(settings.timeout, 30000);
     expectRetryOptions(settings.retry);
-    assert.deepStrictEqual(settings.retry.retryCodesOrShouldRetryFn, [3]);
+    assert.deepStrictEqual(settings.retry.retryCodes, [3]);
     assert.strictEqual(settings.otherArgs, otherArgs);
   });
 
@@ -234,7 +188,7 @@ describe('gax construct settings', () => {
     let settings = defaults.bundlingMethod;
     let backoff = settings.retry.backoffSettings;
     assert.strictEqual(backoff.initialRetryDelayMillis, 1000);
-    assert.deepStrictEqual(settings.retry.retryCodesOrShouldRetryFn, [
+    assert.deepStrictEqual(settings.retry.retryCodes, [
       RETRY_DICT.code_a,
     ]);
     assert.strictEqual(settings.timeout, 50000);
@@ -247,7 +201,7 @@ describe('gax construct settings', () => {
     assert.strictEqual(backoff.initialRetryDelayMillis, 100);
     assert.strictEqual(backoff.retryDelayMultiplier, 1.2);
     assert.strictEqual(backoff.maxRetryDelayMillis, 1000);
-    assert.deepStrictEqual(settings.retry.retryCodesOrShouldRetryFn, [
+    assert.deepStrictEqual(settings.retry.retryCodes, [
       RETRY_DICT.code_c,
     ]);
   });
