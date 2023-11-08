@@ -267,8 +267,10 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       e.note =
         'Exception occurred in retry method that was ' +
         'not classified as transient';
-      this.emit('error', e)
-      this.destroy();
+      // this.emit('error', e)
+      console.log("after emit")
+      this.destroy(e);
+      console.log("after destroy")
       return;
     }
     console.log("276")
@@ -440,21 +442,18 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
             return; //end chunk
           } else {
             console.log("441")
-            // On subsequent retries, this will be increased in the streamHandoffErrorHandler
-            // but if we don't increment by one here we will have an off by one
-            this.retries!++; //TODO if we do >= do we still need this?
             retryStream = this.retry(stream, retry);
             console.log('455')
             this.stream = retryStream;
             return retryStream;
           }
         } else {
-          console.log("transient spot")
           const e = GoogleError.parseGRPCStatusDetails(error);
           e.note =
             'Exception occurred in retry method that was ' +
             'not classified as transient';
-          this.destroy(error);
+            console.log('465')
+            this.destroy(e);
           return; // end chunk
         }
       } else {
@@ -482,7 +481,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    * @param {ApiCall} apiCall - the API function to be called.
    * @param {Object} argument - the argument to be passed to the apiCall.
    * @param {RetryOptions} retry - Configures the exceptions upon which the
-   *   function eshould retry, and the parameters to the exponential backoff retry
+   *   function should retry, and the parameters to the exponential backoff retry
    *   algorithm.
    */
   setStream(

@@ -783,7 +783,7 @@ describe('streaming', () => {
       done();
     });
   });
-  it('emit transient error when new retries are enabled', done => {
+  it('emit transient error message on first error when new retries are enabled', done => {
 
     const errorInfoObj = {
       reason: 'SERVICE_DISABLED',
@@ -864,7 +864,11 @@ describe('streaming', () => {
       done();
     });
   });
-  it.skip('WIP emit transient error when new retries are enabled', done => { //TODO - modify to hit other transient spot - transient needs to be second error
+  it('emit transient error on second or later error when new retries are enabled', done => {
+
+    // stubbing cancel is needed because PassThrough doesn't have
+    // a cancel method and cancel is called as part of the retry
+    const cancelStub = sinon.stub(streaming.StreamProxy.prototype, "cancel")
 
     const errorInfoObj = {
       reason: 'SERVICE_DISABLED',
@@ -888,27 +892,59 @@ describe('streaming', () => {
     const metadata = new Metadata();
     metadata.set('grpc-status-details-bin', status_buffer);
     const error = Object.assign(new GoogleError('test error'), {
+      code: 2,
+      details: 'Failed to read',
+      metadata: metadata,
+    });
+    const error2 = Object.assign(new GoogleError('test error 2'), {
       code: 3,
       details: 'Failed to read',
       metadata: metadata,
     });
+    let count = 0
 
     const spy = sinon.spy((...args: Array<{}>) => {
       assert.strictEqual(args.length, 3);
       const s = new PassThrough({
         objectMode: true,
       });
+      let e = new Error;
+      switch(count){
+      case 0:
+        e = error;
+        
       s.push(null);
       setImmediate(() => {
-        // emits an error not in our included retry codes
-        s.emit('error', error);
+        s.emit('error', e); // is included in our retry codes
       });
       setImmediate(() => {
         s.emit('status', status);
       });
+      count++;
+      return s; 
+      
+      case 1:
+        e = error2; // is not in our retry codes
 
-      console.log("before return")
-      return s;
+        s.push(null);
+        setImmediate(() => {
+          s.emit('error', e);
+        });
+
+        setImmediate(() => {
+          s.emit('status', status);
+        });
+        count++;
+
+        return s;
+      default:
+        setImmediate(() => {
+          s.emit('end');
+        });
+        return s;
+
+      
+    }
     });
     const apiCall = createApiCallStreaming(
       spy,
@@ -916,26 +952,26 @@ describe('streaming', () => {
       false,
       true // new retry behavior enabled
     );
-
     const s = apiCall(
       {},
       {
-        retry: gax.createRetryOptions([5], {
+        retry: gax.createRetryOptions([2, 5], {
           initialRetryDelayMillis: 100,
           retryDelayMultiplier: 1.2,
           maxRetryDelayMillis: 1000,
           rpcTimeoutMultiplier: 1.5,
           maxRpcTimeoutMillis: 3000,
-          maxRetries: 1, // max retries or timeout must be > 0 in order to reach the code we want to test
+          maxRetries: 2, // max retries or timeout must be > 0 in order to reach the code we want to test
         }),
       }
     );
 
     s.on('error', err => {
+
       s.pause();
       s.destroy();
       assert(err instanceof GoogleError);
-      assert.deepStrictEqual(err.message, 'test error');
+      assert.deepStrictEqual(err.message, 'test error 2');
       assert.deepStrictEqual(err.note, "Exception occurred in retry method that was not classified as transient")
       assert.strictEqual(err.domain, errorInfoObj.domain);
       assert.strictEqual(err.reason, errorInfoObj.reason);
@@ -943,12 +979,12 @@ describe('streaming', () => {
         JSON.stringify(err.errorInfoMetadata),
         JSON.stringify(errorInfoObj.metadata)
       );
+      assert.strictEqual(cancelStub.callCount, 1)
       done();
     });
   });
   
   it('emit error and retry once', done => {
-    console.log("871")
     const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
       code: 14,
       details: 'UNAVAILABLE',
@@ -1081,7 +1117,7 @@ describe('streaming', () => {
     });
   });
 
-  it.skip('WIP emit error and retry with resumption requrest', done => { //TODO(coleleah): rename
+  it.skip('WIP emit error and retry with resumption requrest', done => { //TODO(coleleah): draw from transient example - make sure to end the stream
     const request = {"example": "example content"}
 
     const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
@@ -1297,7 +1333,6 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
 
   });
   it('allows custom CallOptions.retry settings with shouldRetryFn instead of retryCodes and new retry behavior', done => {
-    console.log("NEXT TEST")
     sinon
       .stub(streaming.StreamProxy.prototype, 'forwardEventsNewImplementation')
       .callsFake((stream): any => {
@@ -1429,7 +1464,6 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
       details: 'Failed to read',
     });
     const spy = sinon.spy((...args: Array<{}>) => {
-      console.log("args", args)
       assert.strictEqual(args.length, 3);
       const s = new PassThrough({
         objectMode: true,
@@ -1446,7 +1480,6 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
         s.emit('status', status);
       });
 
-      console.log("before return")
       return s;
     });
 
@@ -1475,7 +1508,6 @@ describe('handles server streaming retries in gax when gaxStreamingRetries is en
         }
       );
       call.on('error', err => {
-        console.log("I reached this", err)
         assert(err instanceof GoogleError);
         if (err.code !== 4){
           assert.strictEqual(err.code, 3)
