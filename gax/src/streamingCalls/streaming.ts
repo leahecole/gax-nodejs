@@ -181,14 +181,16 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     }
     console.log("BEFORE MAX RETRIES", this.retries, maxRetries)
 
-    if (this.retries && this.retries > maxRetries) { //TODO Does this need to be >= to match retries???
+    if (this.retries && this.retries >= maxRetries) {
       console.log("MAX RETRIES", this.retries, maxRetries)
       const error = new GoogleError(
         'Exceeded maximum number of retries before any ' +
           'response was received'
       );
       error.code = Status.DEADLINE_EXCEEDED;
+      console.log('before emit')
       this.emit('error', error)
+      console.log('before destroy')
       this.destroy();
       throw error;
     }
@@ -222,21 +224,34 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       deadline = now.getTime() + retry.backoffSettings.totalTimeoutMillis;
     }
     const maxRetries = retry.backoffSettings.maxRetries!;
+    try{
+      this.timeoutAndMaxRetryCheck(
+          deadline,
+          maxRetries,
+          retry.backoffSettings.totalTimeoutMillis!
+        );
+      }catch(error){
+        // console.log("CAUGHT")
 
-    this.timeoutAndMaxRetryCheck(
-      deadline,
-      maxRetries,
-      retry.backoffSettings.totalTimeoutMillis!
-    );
+        // this.emit('error', error)
+        // console.log("after emit")
+        // this.destroy(error)
+        console.log("240")
+        return
+      }
 
+    console.log("RIGHT BEFORE INCREASE", this.retries)
     this.retries!++;
     const e = GoogleError.parseGRPCStatusDetails(error);
+    console.log("after parse afte rincrease")
     let shouldRetry = this.defaultShouldRetry(e!, retry);
-    if (typeof retry.retryCodesOrShouldRetryFn === 'function') {
-      shouldRetry = retry.retryCodesOrShouldRetryFn(e!);
+    if (retry.shouldRetryFn) {
+      console.log("theres a shoudlretry function")
+      shouldRetry = retry.shouldRetryFn(e!);
     }
 
     if (shouldRetry) {
+      console.log("shouldRetry249")
       const toSleep = Math.random() * delay;
       setTimeout(() => {
         now = new Date();
@@ -413,7 +428,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         if (shouldRetry) {
           console.log("shouldretry")
           console.log(maxRetries, timeout)
-          if (maxRetries && timeout!) { //TODO: try to get this chunk tested
+          if (maxRetries && timeout!) {
             console.log("this one")
             const newError = new GoogleError(
               'Cannot set both totalTimeoutMillis and maxRetries ' +
@@ -556,8 +571,8 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
       this.setWritable(stream);
     }
 
-    // if (this._isCancelCalled && this.stream) {
-    //   this.stream.cancel();
-    // }
+    if (this._isCancelCalled && this.stream) {
+      this.stream.cancel();
+    }
   }
 }
