@@ -55,6 +55,8 @@ function createApiCallStreaming(
   ) as GaxCallStream;
 }
 
+
+
 describe('streaming', () => {
   afterEach(() => {
     sinon.restore();
@@ -971,7 +973,6 @@ describe('streaming', () => {
     });
   });
   
-  //TODO(coleleah) - maybe refactor this test??
   it('emit error and retry once', done => {
     const firstError = Object.assign(new GoogleError('UNAVAILABLE'), {
       code: 14,
@@ -1218,7 +1219,6 @@ describe('streaming', () => {
       done();
     })
   });
-
 });
 
 describe('handles server streaming retries in gax when gaxStreamingRetries is enabled', () => {

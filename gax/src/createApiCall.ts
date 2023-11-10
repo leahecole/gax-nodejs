@@ -28,11 +28,7 @@ import {
   SimpleCallbackFunction,
 } from './apitypes';
 import {Descriptor} from './descriptor';
-import {
-  CallOptions,
-  CallSettings,
-  checkRetryOptions
-} from './gax';
+import {CallOptions, CallSettings, checkRetryOptions} from './gax';
 import {retryable} from './normalCalls/retries';
 import {addTimeoutArg} from './normalCalls/timeout';
 import {StreamingApiCaller} from './streamingCalls/streamingApiCaller';
@@ -108,32 +104,36 @@ export function createApiCall(
 
         const retry = thisSettings.retry;
 
-        if (streaming && retry && retry.retryCodes.length > 0 && retry.shouldRetryFn){
-          throw new Error('Only one of retryCodes or shouldRetryFn may be defined')
+        if (
+          streaming &&
+          retry &&
+          retry.retryCodes.length > 0 &&
+          retry.shouldRetryFn
+        ) {
+          throw new Error(
+            'Only one of retryCodes or shouldRetryFn may be defined'
+          );
         }
         if (!streaming && retry) {
-          if (retry.shouldRetryFn) { 
+          if (retry.shouldRetryFn) {
             throw new Error(
               'Using a function to determine retry eligibility is only supported with server streaming calls'
             );
           }
-          if (retry.getResumptionRequestFn){
+          if (retry.getResumptionRequestFn) {
             throw new Error(
               'Resumption strategy can only be used with server streaming retries'
             );
           }
-          if (
-            retry.retryCodes &&
-            retry.retryCodes.length > 0
-          ) {
-              retry.backoffSettings.initialRpcTimeoutMillis ??=
-                thisSettings.timeout;
-              return retryable(
-                func,
-                thisSettings.retry!,
-                thisSettings.otherArgs as GRPCCallOtherArgs,
-                thisSettings.apiName
-              );
+          if (retry.retryCodes && retry.retryCodes.length > 0) {
+            retry.backoffSettings.initialRpcTimeoutMillis ??=
+              thisSettings.timeout;
+            return retryable(
+              func,
+              thisSettings.retry!,
+              thisSettings.otherArgs as GRPCCallOtherArgs,
+              thisSettings.apiName
+            );
           }
         }
         return addTimeoutArg(

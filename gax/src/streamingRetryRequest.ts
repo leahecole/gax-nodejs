@@ -74,8 +74,8 @@ const DEFAULTS = {
   retryCodes: [14],
 
   shouldRetryFn: function (response: any) {
-      return undefined;
-    },
+    return undefined;
+  },
 
   getResumptionRequestFn: function (response: any) {
     return undefined;

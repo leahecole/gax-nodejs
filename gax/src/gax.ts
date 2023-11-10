@@ -80,12 +80,12 @@ import {RequestType} from './apitypes';
 export class RetryOptions {
   retryCodes: number[];
   backoffSettings: BackoffSettings;
-  shouldRetryFn?: ((error: GoogleError) => boolean);
+  shouldRetryFn?: (error: GoogleError) => boolean;
   getResumptionRequestFn?: (request: RequestType) => RequestType;
   constructor(
     retryCodes: number[],
     backoffSettings: BackoffSettings,
-    shouldRetryFn?: ((error: GoogleError) => boolean),
+    shouldRetryFn?: (error: GoogleError) => boolean,
     getResumptionRequestFn?: (request: RequestType) => RequestType
   ) {
     this.retryCodes = retryCodes;
@@ -94,7 +94,6 @@ export class RetryOptions {
     this.getResumptionRequestFn = getResumptionRequestFn;
   }
 }
-
 
 /**
  * Per-call configurable settings for working with retry-request
@@ -378,7 +377,7 @@ export function checkRetryOptions(
 
     let retryCodes = [Status.UNAVAILABLE];
     let shouldRetryFn;
-    if (options.retryRequestOptions.shouldRetryFn){
+    if (options.retryRequestOptions.shouldRetryFn) {
       retryCodes = [];
       shouldRetryFn = options.retryRequestOptions.shouldRetryFn;
     }
@@ -441,7 +440,7 @@ export function checkRetryOptions(
 export function createRetryOptions(
   retryCodes: number[],
   backoffSettings: BackoffSettings,
-  shouldRetryFn?: ((error: GoogleError) => boolean),
+  shouldRetryFn?: (error: GoogleError) => boolean,
   getResumptionRequestFn?: (request: RequestType) => RequestType
 ): RetryOptions {
   return {

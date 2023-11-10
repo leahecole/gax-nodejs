@@ -79,9 +79,7 @@ function expectRetryOptions(obj: gax.RetryOptions) {
     // eslint-disable-next-line no-prototype-builtins
     assert.ok(obj.hasOwnProperty(k))
   );
-  assert.ok(
-    Array.isArray(obj.retryCodes)
-  );
+  assert.ok(Array.isArray(obj.retryCodes));
   expectBackoffSettings(obj.backoffSettings);
 }
 
@@ -188,9 +186,7 @@ describe('gax construct settings', () => {
     let settings = defaults.bundlingMethod;
     let backoff = settings.retry.backoffSettings;
     assert.strictEqual(backoff.initialRetryDelayMillis, 1000);
-    assert.deepStrictEqual(settings.retry.retryCodes, [
-      RETRY_DICT.code_a,
-    ]);
+    assert.deepStrictEqual(settings.retry.retryCodes, [RETRY_DICT.code_a]);
     assert.strictEqual(settings.timeout, 50000);
 
     /* page_streaming_method is unaffected because it's not specified in
@@ -201,8 +197,6 @@ describe('gax construct settings', () => {
     assert.strictEqual(backoff.initialRetryDelayMillis, 100);
     assert.strictEqual(backoff.retryDelayMultiplier, 1.2);
     assert.strictEqual(backoff.maxRetryDelayMillis, 1000);
-    assert.deepStrictEqual(settings.retry.retryCodes, [
-      RETRY_DICT.code_c,
-    ]);
+    assert.deepStrictEqual(settings.retry.retryCodes, [RETRY_DICT.code_c]);
   });
 });
