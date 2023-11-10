@@ -322,7 +322,7 @@ export class CallSettings {
  * @return {CallOptions} A new CallOptions object.
  *
  */
-export function checkRetryOptions(
+export function convertRetryOptions(
   options?: CallOptions,
   gaxStreamingRetries?: boolean
 ): CallOptions | undefined {

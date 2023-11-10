@@ -88,7 +88,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   stream?: CancellableStream;
   private _responseHasSent: boolean;
   rest?: boolean;
-  new_retry?: boolean;
+  gaxServerStreamingRetries?: boolean;
   apiCall?: SimpleCallbackFunction;
   argument?: {};
   prevDeadline?: number;
@@ -105,7 +105,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     type: StreamType,
     callback: APICallback,
     rest?: boolean,
-    new_retry?: boolean
+    gaxServerStreamingRetries?: boolean
   ) {
     super(undefined, undefined, {
       objectMode: true,
@@ -117,7 +117,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     this._isCancelCalled = false;
     this._responseHasSent = false;
     this.rest = rest;
-    this.new_retry = new_retry;
+    this.gaxServerStreamingRetries = gaxServerStreamingRetries;
   }
 
   cancel() {
@@ -131,21 +131,22 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
   retry(stream: CancellableStream, retry: RetryOptions) {
     let retryArgument = this.argument! as unknown as RequestType;
     if (typeof retry.getResumptionRequestFn! === 'function') {
-      const newRetryArgument = retry.getResumptionRequestFn(retryArgument);
-      if (newRetryArgument !== undefined) {
+      const resumptionRetryArgument =
+        retry.getResumptionRequestFn(retryArgument);
+      if (resumptionRetryArgument !== undefined) {
         retryArgument = retry.getResumptionRequestFn(retryArgument);
       }
     }
     this.resetStreams(stream);
 
-    const new_stream = this.apiCall!(
+    const newStream = this.apiCall!(
       retryArgument,
       this._callback
     ) as CancellableStream;
-    this.stream = new_stream;
+    this.stream = newStream;
 
-    this.streamHandoffHelper(new_stream, retry);
-    return new_stream;
+    this.streamHandoffHelper(newStream, retry);
+    return newStream;
   }
 
   /**
@@ -154,7 +155,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    * @param {number} maxRetries - maximum total number of retries
    * @param {number} totalTimeoutMillis - total timeout in milliseconds
    */
-  timeoutAndMaxRetryCheck(
+  throwIfMaxRetriesOrTotalTimeoutExceeded(
     deadline: number,
     maxRetries: number,
     totalTimeoutMillis: number
@@ -218,7 +219,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     }
     const maxRetries = retry.backoffSettings.maxRetries!;
     try {
-      this.timeoutAndMaxRetryCheck(
+      this.throwIfMaxRetriesOrTotalTimeoutExceeded(
         deadline,
         maxRetries,
         retry.backoffSettings.totalTimeoutMillis!
@@ -357,7 +358,7 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
    *   function eshould retry, and the parameters to the exponential backoff retry
    *   algorithm.
    */
-  forwardEventsNewImplementation(
+  forwardEventsWithRetries(
     stream: CancellableStream,
     retry: RetryOptions
   ): CancellableStream | undefined {
@@ -476,34 +477,29 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
         const stream = apiCall(argument, this._callback) as CancellableStream;
         this.stream = stream;
         this.setReadable(stream);
-      } else if (this.new_retry) {
+      } else if (this.gaxServerStreamingRetries) {
         warn(
           'gax_server_streaming_retries',
           'You are using the new experimental gax native server streaming retry implementation',
           'ExperimentalWarning'
         );
-        const retryStream = streamingRetryRequest(
-          null,
-          {
-            objectMode: true,
-            request: () => {
-              if (this._isCancelCalled) {
-                if (this.stream) {
-                  this.stream.cancel();
-                }
-                return;
+        const retryStream = streamingRetryRequest({
+          request: () => {
+            if (this._isCancelCalled) {
+              if (this.stream) {
+                this.stream.cancel();
               }
-              const stream = apiCall(
-                argument,
-                this._callback
-              ) as CancellableStream;
-              this.stream = stream;
-              this.stream = this.forwardEventsNewImplementation(stream, retry);
-              return this.stream;
-            },
+              return;
+            }
+            const stream = apiCall(
+              argument,
+              this._callback
+            ) as CancellableStream;
+            this.stream = stream;
+            this.stream = this.forwardEventsWithRetries(stream, retry);
+            return this.stream;
           },
-          null
-        );
+        });
 
         this.setReadable(retryStream);
       } else {

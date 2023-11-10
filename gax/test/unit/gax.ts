@@ -25,7 +25,6 @@
 import * as assert from 'assert';
 import {describe, it} from 'mocha';
 import * as gax from '../../src/gax';
-import {GoogleError} from '../../src';
 
 const SERVICE_NAME = 'test.interface.v1.api';
 

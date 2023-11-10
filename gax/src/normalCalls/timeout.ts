@@ -17,7 +17,6 @@
 import {
   GRPCCall,
   GRPCCallOtherArgs,
-  ServerStreamingCall,
   SimpleCallbackFunction,
   UnaryCall,
 } from '../apitypes';

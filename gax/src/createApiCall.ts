@@ -28,7 +28,7 @@ import {
   SimpleCallbackFunction,
 } from './apitypes';
 import {Descriptor} from './descriptor';
-import {CallOptions, CallSettings, checkRetryOptions} from './gax';
+import {CallOptions, CallSettings, convertRetryOptions} from './gax';
 import {retryable} from './normalCalls/retries';
 import {addTimeoutArg} from './normalCalls/timeout';
 import {StreamingApiCaller} from './streamingCalls/streamingApiCaller';
@@ -76,13 +76,13 @@ export function createApiCall(
     let thisSettings: CallSettings;
     if (currentApiCaller instanceof StreamingApiCaller) {
       const gaxStreamingRetries =
-        currentApiCaller.descriptor?.gaxStreamingRetries;
+        currentApiCaller.descriptor?.gaxStreamingRetries ?? false;
       // If Gax streaming retries are enabled, check settings passed at call time and convert parameters if needed
-      const thisSettingsTemp = checkRetryOptions(
+      const convertedRetryOptions = convertRetryOptions(
         callOptions,
         gaxStreamingRetries
       );
-      thisSettings = settings.merge(thisSettingsTemp);
+      thisSettings = settings.merge(convertedRetryOptions);
     } else {
       thisSettings = settings.merge(callOptions);
     }
