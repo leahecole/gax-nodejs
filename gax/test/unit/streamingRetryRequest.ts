@@ -84,7 +84,7 @@ describe('retry-request', () => {
             }
           ) as CancellableStream;
           return stream;
-        }
+        },
       })
         .on('end', done())
         .on('data', (data: any) => {
@@ -95,13 +95,13 @@ describe('retry-request', () => {
 
     it('throws request error', done => {
       try {
-        const opts = {}
+        const opts = {};
         streamingRetryRequest(opts);
-      } catch (err: any) {
+      } catch (err) {
+        assert(err instanceof Error);
         assert.match(err.message, /A request library must be provided/);
         done();
       }
     });
-
   });
 });
