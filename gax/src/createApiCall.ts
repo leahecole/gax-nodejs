@@ -107,17 +107,19 @@ export function createApiCall(
           ?.streaming;
 
         const retry = thisSettings.retry;
-        if (!streaming && retry && retry?.getResumptionRequestFn) {
-          throw new Error(
-            'Resumption strategy can only be used with server streaming retries'
-          );
+
+        if (streaming && retry && retry.retryCodes.length > 0 && retry.shouldRetryFn){
+          throw new Error('Only one of retryCodes or shouldRetryFn may be defined')
         }
-        //TODO: coleleah - runtime check for if shouldRetryFn is defined and retryCodes are passed
-        //TODO: coleleah - add tests
         if (!streaming && retry) {
           if (retry.shouldRetryFn) { 
             throw new Error(
               'Using a function to determine retry eligibility is only supported with server streaming calls'
+            );
+          }
+          if (retry.getResumptionRequestFn){
+            throw new Error(
+              'Resumption strategy can only be used with server streaming retries'
             );
           }
           if (

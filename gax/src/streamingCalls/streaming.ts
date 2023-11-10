@@ -137,11 +137,15 @@ export class StreamProxy extends duplexify implements GRPCCallResult {
     console.log("retryArgument", retryArgument)
 
     if (
-      typeof retry.getResumptionRequestFn! === 'function' &&
-      retry.getResumptionRequestFn(retryArgument)
+      typeof retry.getResumptionRequestFn! === 'function'
     ) {
-      retryArgument = retry.getResumptionRequestFn(retryArgument);
-      console.log("retryArgumetnAfter", retryArgument)
+      const newRetryArgument = retry.getResumptionRequestFn(retryArgument);
+      if (newRetryArgument !== undefined) {
+        retryArgument = retry.getResumptionRequestFn(retryArgument);
+        console.log("retryArgumetnAfter", retryArgument)
+      } else {
+        console.log("resumption request udnefined")
+      }
     }
     console.log("BEFORE RESETSTREAMS")
     this.resetStreams(stream);

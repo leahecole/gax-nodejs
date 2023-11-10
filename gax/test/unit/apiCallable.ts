@@ -280,7 +280,7 @@ describe('createApiCall', () => {
         retry: gax.createRetryOptions(
           [1],
           initialBackoffSettings,
-          function neverRetry(){return false}, 
+          undefined,
           getResumptionRequestFn
         ),
       },
@@ -296,8 +296,6 @@ describe('createApiCall', () => {
         }
       );
     } catch (err) {
-      console.log("HELLO")
-      console.log(err)
       assert(err instanceof Error);
       assert.strictEqual(
         err.message,

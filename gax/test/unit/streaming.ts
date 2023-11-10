@@ -55,22 +55,6 @@ function createApiCallStreaming(
   ) as GaxCallStream;
 }
 
-function createApiCallStreamingWithNewLogic( //TODO: verify this is needed???
-  func:
-    | Promise<GRPCCall>
-    | sinon.SinonSpy<Array<{}>, internal.Transform | StreamArrayParser>,
-  type: streaming.StreamType,
-  rest?: boolean
-) {
-  const settings = new gax.CallSettings();
-  return createApiCall(
-    //@ts-ignore
-    Promise.resolve(func),
-    settings,
-    new StreamDescriptor(type, rest, true)
-  ) as GaxCallStream;
-}
-
 describe('streaming', () => {
   afterEach(() => {
     sinon.restore();
@@ -1028,9 +1012,11 @@ describe('streaming', () => {
       return s;
     });
 
-    const apiCall = createApiCallStreamingWithNewLogic(
+    const apiCall = createApiCallStreaming(
       spy,
-      streaming.StreamType.SERVER_STREAMING
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true // streaming retries
     );
 
     const s = apiCall(
@@ -1051,7 +1037,6 @@ describe('streaming', () => {
     });
   });
 
-    //TODO (coleleah) - add tests to test conditions of whether or not shouldRetryFn should be set or not
   it('emit error and retry twice with shouldRetryFn', done => {
     // stubbing cancel is needed because PassThrough doesn't have
     // a cancel method and cancel is called as part of the retry
@@ -1099,9 +1084,11 @@ describe('streaming', () => {
       }
     });
 
-    const apiCall = createApiCallStreamingWithNewLogic(
+    const apiCall = createApiCallStreaming(
       spy,
-      streaming.StreamType.SERVER_STREAMING
+      streaming.StreamType.SERVER_STREAMING,
+      false,
+      true // new retries
     );
 
     function shouldRetryFn(error: GoogleError) {
@@ -1141,17 +1128,14 @@ describe('streaming', () => {
    
 
     const spy = sinon.spy((...args: Array<{}>) => {
-      console.log("args", args)
       //@ts-ignore
       const arg = args[0].arg
-      console.log(arg)
       assert.strictEqual(args.length, 3);
       const s = new PassThrough({
         objectMode: true,
       });
       switch(arg){
       case 0:
-        console.log("case zero")
         s.push("Hello")
         s.push("World")
         setImmediate(() => {
@@ -1175,7 +1159,6 @@ describe('streaming', () => {
         });
         return s;
       case 2:
-        console.log("case 2")
         s.push("testing")
         s.push("retries")
         setImmediate(() => {
@@ -1186,7 +1169,6 @@ describe('streaming', () => {
         });
         return s;
       default:
-        console.log("in default")
         setImmediate(() => {
           s.emit('end');
         });
@@ -1203,7 +1185,6 @@ describe('streaming', () => {
     );
     // resumption strategy is to pass a different arg to the function
     const getResumptionRequestFn = (originalRequest: RequestType) => {
-      console.log("origRequest", originalRequest)
       return {arg: 2};
     };
     const s = apiCall(
