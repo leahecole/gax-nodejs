@@ -29,7 +29,7 @@
     "@compodoc/compodoc": "1.1.23",
     "@types/mocha": "^9.0.0",
     "@types/ncp": "^2.0.1",
-    "@types/node": "^20.5.0",
+    "@types/node": "^20.10.0",
     "@types/node-fetch": "^2.5.4",
     "@types/object-hash": "^3.0.0",
     "@types/proxyquire": "^1.3.28",
