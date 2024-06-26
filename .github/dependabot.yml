@@ -1,9 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directories:
-      - "/gax"
-      - "/tools"
+    directory: "/"
     schedule:
       interval: "daily"
     versioning-strategy: increase
