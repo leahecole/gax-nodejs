@@ -1,0 +1,17 @@
+# Example configuration file that:
+#  - Has a private registry
+#  - Ignores lodash dependency
+#  - Disables version-updates
+#  - Defines a group by package name, for security updates for golang dependencies
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directories:
+      - "/gax"
+      - "/tools"
+    schedule:
+      interval: "daily"
+    # Disable version updates for npm dependencies
+    # which means it will only do security updates
+    open-pull-requests-limit: 0
