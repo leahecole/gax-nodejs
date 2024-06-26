@@ -6,7 +6,8 @@ updates:
       - "/tools"
     schedule:
       interval: "daily"
-    # this ignores version updates which are handled via renovate
+    versioning-strategy: increase
+        # this ignores version updates which are handled via renovate
     # but lets us still do security updates
     ignore:
       - dependency-name: "*"
